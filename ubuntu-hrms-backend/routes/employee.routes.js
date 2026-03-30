@@ -1,6 +1,6 @@
 const express = require('express');
-const auth = require('../middlewares/auth.middleware');
-const roleMiddleware = require('../middlewares/roleMiddleware');
+const auth = require('../middleware/auth.middleware');
+const roleMiddleware = require('../middleware/roleMiddleware');
 const { getEmployees, addEmployee, updateEmployee, deleteEmployee } = require('../controllers/employee.controller');
 
 const router = express.Router();
