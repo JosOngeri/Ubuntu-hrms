@@ -1,0 +1,25 @@
+const express = require('express');
+const router = express.Router();
+const jobController = require('../controllers/job.controller');
+const auth = require('../middleware/auth.middleware');
+const role = require('../middleware/roleMiddleware');
+const upload = require('../middleware/cvUpload');
+
+// 3.4.1 Job Posting CRUD (protected)
+router.post('/', auth, role(['admin', 'manager', 'hr']), jobController.createJob);
+router.get('/', auth, jobController.getJobs);
+router.get('/:id', auth, jobController.getJob);
+router.put('/:id', auth, role(['admin', 'manager', 'hr']), jobController.updateJob);
+router.delete('/:id', auth, role(['admin', 'manager', 'hr']), jobController.deleteJob);
+
+// 3.4.4 Available Jobs Listing (public)
+router.get('/public/list', jobController.listOpenJobs);
+
+// 3.4.5 Application Submission (public, with CV upload)
+router.post('/:id/apply', upload.single('cv'), jobController.applyToJob);
+
+// 3.4.6 Application Review (manager/HR)
+router.get('/:id/applications', auth, role(['admin', 'manager', 'hr']), jobController.getApplications);
+router.put('/applications/:appId/status', auth, role(['admin', 'manager', 'hr']), jobController.updateApplicationStatus);
+
+module.exports = router;

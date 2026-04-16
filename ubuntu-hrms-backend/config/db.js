@@ -60,6 +60,36 @@ const initDatabase = async () => {
     )
   `);
 
+  // Recruitment: Jobs table
+  await query(`
+    CREATE TABLE IF NOT EXISTS jobs (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      description TEXT NOT NULL,
+      department VARCHAR(100),
+      location VARCHAR(100),
+      employmentType VARCHAR(50),
+      status VARCHAR(20) DEFAULT 'open',
+      postedBy INTEGER,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Recruitment: Job Applications table
+  await query(`
+    CREATE TABLE IF NOT EXISTS job_applications (
+      id SERIAL PRIMARY KEY,
+      jobId INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
+      applicantName VARCHAR(255) NOT NULL,
+      applicantEmail VARCHAR(255) NOT NULL,
+      applicantPhone VARCHAR(50),
+      cvPath VARCHAR(255),
+      status VARCHAR(20) DEFAULT 'pending',
+      appliedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   await query(`
     CREATE TABLE IF NOT EXISTS attendance (
       id BIGSERIAL PRIMARY KEY,

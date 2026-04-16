@@ -20,9 +20,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/employees', require('./routes/employee.routes'));
 app.use('/api/attendance', require('./routes/attendance.routes'));
+app.use('/api/jobs', require('./routes/job.routes'));
 
 app.use((req, res) => {
   res.status(404).json({ msg: 'Route not found' });
