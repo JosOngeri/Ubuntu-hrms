@@ -8,7 +8,7 @@ import Modal from '../../components/common/Modal'
 import { attendanceAPI, employeeAPI } from '../../services/api'
 import { useAuth } from '../../contexts/AuthContext'
 import { toast } from 'react-toastify'
-import { BsClipboardCheck, BsClock } from 'react-icons/bs'
+import { BsPencil, BsClock } from 'react-icons/bs'
 import {
   Select,
   SelectTrigger,
@@ -20,50 +20,110 @@ import {
 
 const Attendance = ({ role = 'employee' }) => {
   const { user } = useAuth()
+
+  const isEmployee = role === 'employee'
+  const canManageAttendance = role === 'admin' || role === 'manager'
+
   const [attendance, setAttendance] = useState([])
   const [loading, setLoading] = useState(true)
   const [showPunchModal, setShowPunchModal] = useState(false)
+  const [showAdjustModal, setShowAdjustModal] = useState(false)
   const [punchData, setPunchData] = useState({
     timestamp: new Date().toISOString().slice(0, 16),
-    punchState: 'checkOut',
+    punchState: 'checkIn',
     employeeId: '',
   })
+  const [adjustData, setAdjustData] = useState({
+    id: '',
+    attendanceDate: '',
+    status: 'Present',
+    shift: 'Morning',
+    checkIn: '',
+    breakOut: '',
+    breakIn: '',
+    checkOut: '',
+  })
+  const [selectedEmployee, setSelectedEmployee] = useState('')
+  const [biometricDeviceId, setBiometricDeviceId] = useState(localStorage.getItem('biometricDeviceId') || 'BIO-001')
   const [employees, setEmployees] = useState([])
 
   useEffect(() => {
-    fetchAttendance()
-    if (role === 'manager') {
+    if (canManageAttendance) {
       fetchEmployees()
+      return
     }
-  }, [])
+
+    fetchAttendance()
+  }, [user?.id, user?.userId, role])
+
+  useEffect(() => {
+    if (canManageAttendance) {
+      if (selectedEmployee) {
+        fetchAttendance(selectedEmployee)
+      } else {
+        setAttendance([])
+      }
+    }
+  }, [selectedEmployee])
+
+  useEffect(() => {
+    localStorage.setItem('biometricDeviceId', biometricDeviceId || '')
+  }, [biometricDeviceId])
 
   const fetchEmployees = async () => {
     try {
       const res = await employeeAPI.getAll()
-      setEmployees(res.data || [])
+      const items = res.data || []
+      setEmployees(items)
+
+      if (items.length > 0 && !selectedEmployee) {
+        setSelectedEmployee(items[0]._id || items[0].id)
+      }
     } catch (err) {
       setEmployees([])
+      toast.error('Failed to fetch employees')
     }
   }
 
   const fetchAttendance = async (empId) => {
-  try {
-    setLoading(true)
-    const employeeId = empId || user?.userId || user?.id
-    if (employeeId) {
+    try {
+      setLoading(true)
+
+      const employeeId = canManageAttendance
+        ? empId
+        : (empId || user?.userId || user?.id)
+
+      if (!employeeId) {
+        setAttendance([])
+        return
+      }
+
       const response = await attendanceAPI.getByEmployeeId(employeeId)
       setAttendance(response.data || [])
+    } catch (error) {
+      console.error('Failed to fetch attendance', error)
+      toast.error('Failed to load attendance records')
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    console.error('Failed to fetch attendance', error)
-    toast.error('Failed to load attendance records')
-  } finally {
-    setLoading(false)
   }
-}
 
-const handleManagerPunch = async (e) => {
+  const handleSelfPunch = async (state) => {
+    try {
+      await attendanceAPI.manualSelfPunch({
+        biometricDeviceId,
+        punchState: state,
+      })
+      toast.success('Attendance logged')
+      fetchAttendance()
+    } catch (error) {
+      toast.error(error?.response?.data?.msg || 'Failed to log attendance')
+    }
+  }
+
+  const handleManagerPunch = async (e) => {
     e.preventDefault()
+
     try {
       if (!punchData.employeeId) {
         toast.error('Please select an employee')
@@ -74,11 +134,60 @@ const handleManagerPunch = async (e) => {
       })
       toast.success('Attendance recorded successfully')
       setShowPunchModal(false)
+      setPunchData({
+        timestamp: new Date().toISOString().slice(0, 16),
+        punchState: 'checkIn',
+        employeeId: selectedEmployee || '',
+      })
       fetchAttendance(punchData.employeeId)
     } catch (error) {
-      toast.error('Failed to record attendance')
+      toast.error(error?.response?.data?.msg || 'Failed to record attendance')
     }
-}
+  }
+
+  const openAdjustmentModal = (row) => {
+    const toLocalInput = (value) => {
+      if (!value) return ''
+      const date = new Date(value)
+      const offset = date.getTimezoneOffset() * 60000
+      return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+    }
+
+    setAdjustData({
+      id: row._id || row.id,
+      attendanceDate: row.attendanceDate ? String(row.attendanceDate).slice(0, 10) : '',
+      status: row.status || 'Present',
+      shift: row.shift || 'Morning',
+      checkIn: toLocalInput(row.checkIn),
+      breakOut: toLocalInput(row.breakOut),
+      breakIn: toLocalInput(row.breakIn),
+      checkOut: toLocalInput(row.checkOut),
+    })
+    setShowAdjustModal(true)
+  }
+
+  const handleAdjustmentSave = async (e) => {
+    e.preventDefault()
+
+    try {
+      const payload = {
+        attendanceDate: adjustData.attendanceDate || undefined,
+        status: adjustData.status,
+        shift: adjustData.shift,
+        checkIn: adjustData.checkIn || undefined,
+        breakOut: adjustData.breakOut || undefined,
+        breakIn: adjustData.breakIn || undefined,
+        checkOut: adjustData.checkOut || undefined,
+      }
+
+      await attendanceAPI.update(adjustData.id, payload)
+      toast.success('Attendance updated successfully')
+      setShowAdjustModal(false)
+      fetchAttendance(selectedEmployee)
+    } catch (error) {
+      toast.error(error?.response?.data?.msg || 'Failed to adjust attendance')
+    }
+  }
 
   const formatTime = (time) => {
     if (!time) return '-'
@@ -113,21 +222,91 @@ const handleManagerPunch = async (e) => {
       label: 'Hours',
       render: formatHours,
     },
+    ...(canManageAttendance
+      ? [
+          {
+            key: 'id',
+            label: 'Actions',
+            render: (_, row) => (
+              <button className="btn-icon edit" onClick={() => openAdjustmentModal(row)} title="Adjust Attendance">
+                <BsPencil size={16} />
+              </button>
+            ),
+          },
+        ]
+      : []),
   ]
 
   return (
     <DashboardLayout>
       <div className="page-header">
         <h1 className="page-title">Attendance</h1>
-        <p className="page-subtitle">View and manage attendance records</p>
+        <p className="page-subtitle">
+          {isEmployee ? 'Daily logging and history' : 'Daily logging, history, and adjustment'}
+        </p>
       </div>
 
-      {role === 'manager' && (
+      {canManageAttendance && (
         <Card>
-          <div className="attendance-actions">
-            <Button variant="primary" onClick={() => setShowPunchModal(true)}>
+          <div className="attendance-actions flex flex-wrap gap-3 items-center">
+            <label className="font-medium">Employee</label>
+            <select
+              className="form-select"
+              value={selectedEmployee}
+              onChange={(e) => {
+                setSelectedEmployee(e.target.value)
+                setPunchData((prev) => ({ ...prev, employeeId: e.target.value }))
+              }}
+            >
+              <option value="">Select employee...</option>
+              {employees.map((emp) => (
+                <option key={emp._id || emp.id} value={emp._id || emp.id}>
+                  {emp.fullName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.email}
+                </option>
+              ))}
+            </select>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (!selectedEmployee) {
+                  toast.error('Select an employee first')
+                  return
+                }
+
+                setPunchData((prev) => ({
+                  ...prev,
+                  employeeId: selectedEmployee,
+                }))
+                setShowPunchModal(true)
+              }}
+            >
               <BsClock size={18} />
-              Manual Punch (Flexible Time)
+              Log Daily Attendance
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {isEmployee && (
+        <Card>
+          <div className="attendance-actions flex flex-wrap gap-3 items-end">
+            <Input
+              label="Biometric Device ID"
+              value={biometricDeviceId}
+              onChange={(e) => setBiometricDeviceId(e.target.value)}
+              placeholder="BIO-001"
+            />
+            <Button variant="secondary" onClick={() => handleSelfPunch('checkIn')}>
+              Check In
+            </Button>
+            <Button variant="secondary" onClick={() => handleSelfPunch('breakOut')}>
+              Break Out
+            </Button>
+            <Button variant="secondary" onClick={() => handleSelfPunch('breakIn')}>
+              Break In
+            </Button>
+            <Button variant="primary" onClick={() => handleSelfPunch('checkOut')}>
+              Check Out
             </Button>
           </div>
         </Card>
@@ -137,7 +316,7 @@ const handleManagerPunch = async (e) => {
         <Table columns={columns} data={attendance} loading={loading} />
       </Card>
 
-      {role === 'manager' && (
+      {canManageAttendance && (
         <Modal isOpen={showPunchModal} onClose={() => setShowPunchModal(false)} title="Manager Manual Punch">
           <form onSubmit={handleManagerPunch} className="punch-form space-y-4">
             <div className="form-group">
@@ -151,8 +330,8 @@ const handleManagerPunch = async (e) => {
                 </SelectTrigger>
                 <SelectContent>
                   {employees.map((emp) => (
-                    <SelectItem key={emp._id} value={emp._id}>
-                      {emp.fullName || emp.name || emp.username || emp.email}
+                    <SelectItem key={emp._id || emp.id} value={emp._id || emp.id}>
+                      {emp.fullName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.email}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -181,6 +360,84 @@ const handleManagerPunch = async (e) => {
                 Record Punch
               </Button>
               <Button type="button" variant="ghost" onClick={() => setShowPunchModal(false)}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {canManageAttendance && (
+        <Modal isOpen={showAdjustModal} onClose={() => setShowAdjustModal(false)} title="Adjust Attendance">
+          <form onSubmit={handleAdjustmentSave} className="space-y-4">
+            <div className="form-row">
+              <Input
+                label="Attendance Date"
+                type="date"
+                value={adjustData.attendanceDate}
+                onChange={(e) => setAdjustData({ ...adjustData, attendanceDate: e.target.value })}
+              />
+              <div className="form-group">
+                <label>Status</label>
+                <select
+                  value={adjustData.status}
+                  onChange={(e) => setAdjustData({ ...adjustData, status: e.target.value })}
+                  className="form-select"
+                >
+                  <option value="Present">Present</option>
+                  <option value="Absent">Absent</option>
+                  <option value="Leave">Leave</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Shift</label>
+              <select
+                value={adjustData.shift}
+                onChange={(e) => setAdjustData({ ...adjustData, shift: e.target.value })}
+                className="form-select"
+              >
+                <option value="Morning">Morning</option>
+                <option value="Afternoon">Afternoon</option>
+              </select>
+            </div>
+
+            <div className="form-row">
+              <Input
+                label="Check In"
+                type="datetime-local"
+                value={adjustData.checkIn}
+                onChange={(e) => setAdjustData({ ...adjustData, checkIn: e.target.value })}
+              />
+              <Input
+                label="Break Out"
+                type="datetime-local"
+                value={adjustData.breakOut}
+                onChange={(e) => setAdjustData({ ...adjustData, breakOut: e.target.value })}
+              />
+            </div>
+
+            <div className="form-row">
+              <Input
+                label="Break In"
+                type="datetime-local"
+                value={adjustData.breakIn}
+                onChange={(e) => setAdjustData({ ...adjustData, breakIn: e.target.value })}
+              />
+              <Input
+                label="Check Out"
+                type="datetime-local"
+                value={adjustData.checkOut}
+                onChange={(e) => setAdjustData({ ...adjustData, checkOut: e.target.value })}
+              />
+            </div>
+
+            <div className="form-actions flex gap-2 mt-4">
+              <Button type="submit" variant="primary">
+                Save Adjustment
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setShowAdjustModal(false)}>
                 Cancel
               </Button>
             </div>

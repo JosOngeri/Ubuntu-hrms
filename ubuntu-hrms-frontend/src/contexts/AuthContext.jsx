@@ -12,7 +12,12 @@ export const AuthProvider = ({ children }) => {
 
   const decodeToken = (jwtToken) => {
     try {
-      const decoded = JSON.parse(atob(jwtToken.split('.')[1]))
+      const payload = jwtToken.split('.')[1]
+      if (!payload) return null
+
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+      const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4)
+      const decoded = JSON.parse(atob(padded))
       return decoded
     } catch {
       return null

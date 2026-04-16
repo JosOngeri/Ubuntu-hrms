@@ -7,14 +7,17 @@ import Table from '../../components/common/Table'
 import Input from '../../components/common/Input'
 import Modal from '../../components/common/Modal'
 import { employeeAPI } from '../../services/api'
+import { useAuth } from '../../contexts/AuthContext'
 import { toast } from 'react-toastify'
 // import './Employees.css'
 
 const Employees = () => {
+  const { user } = useAuth()
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [editingEmployee, setEditingEmployee] = useState(null)
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -26,6 +29,9 @@ const Employees = () => {
     wageRate: '',
     department: '',
   })
+
+  const canManageEmployees = user?.role === 'admin' || user?.role === 'manager'
+  const canDeleteEmployees = user?.role === 'admin'
 
   useEffect(() => {
     fetchEmployees()
@@ -43,30 +49,74 @@ const Employees = () => {
     }
   }
 
-  const handleAddEmployee = async (e) => {
+  const resetForm = () => {
+    setFormData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      biometricDeviceId: '',
+      mpesaPhoneNumber: '',
+      employmentType: 'Permanent',
+      wageRate: '',
+      department: '',
+    })
+    setEditingEmployee(null)
+  }
+
+  const openAddModal = () => {
+    resetForm()
+    setShowModal(true)
+  }
+
+  const openEditModal = (employee) => {
+    setEditingEmployee(employee)
+    setFormData({
+      firstName: employee.firstName || '',
+      lastName: employee.lastName || '',
+      email: employee.email || '',
+      phone: employee.phone || '',
+      biometricDeviceId: employee.biometricDeviceId || '',
+      mpesaPhoneNumber: employee.mpesaPhoneNumber || '',
+      employmentType: employee.employmentType || 'Permanent',
+      wageRate: employee.wageRate ?? '',
+      department: employee.department || '',
+    })
+    setShowModal(true)
+  }
+
+  const handleSaveEmployee = async (e) => {
     e.preventDefault()
+
+    if (!canManageEmployees) {
+      toast.error('You are not allowed to manage employees')
+      return
+    }
+
     try {
-      await employeeAPI.create(formData)
-      toast.success('Employee added successfully')
+      if (editingEmployee) {
+        await employeeAPI.update(editingEmployee._id || editingEmployee.id, formData)
+        toast.success('Employee updated successfully')
+      } else {
+        await employeeAPI.create(formData)
+        toast.success('Employee added successfully')
+      }
+
       setShowModal(false)
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        biometricDeviceId: '',
-        mpesaPhoneNumber: '',
-        employmentType: 'Permanent',
-        wageRate: '',
-        department: '',
-      })
+      resetForm()
       fetchEmployees()
     } catch (error) {
-      toast.error('Failed to add employee')
+      const errMsg = error?.response?.data?.msg || (editingEmployee ? 'Failed to update employee' : 'Failed to add employee')
+      toast.error(errMsg)
     }
   }
 
   const handleDelete = async (id) => {
+    if (!canDeleteEmployees) {
+      toast.error('Only admins can delete employees')
+      return
+    }
+
     if (window.confirm('Are you sure you want to delete this employee?')) {
       try {
         await employeeAPI.delete(id)
@@ -79,9 +129,9 @@ const Employees = () => {
   }
 
   const filteredEmployees = employees.filter(emp =>
-    emp.firstName.toLowerCase().includes(search.toLowerCase()) ||
-    emp.lastName.toLowerCase().includes(search.toLowerCase()) ||
-    emp.email.toLowerCase().includes(search.toLowerCase())
+    (emp.firstName || '').toLowerCase().includes(search.toLowerCase()) ||
+    (emp.lastName || '').toLowerCase().includes(search.toLowerCase()) ||
+    (emp.email || '').toLowerCase().includes(search.toLowerCase())
   )
 
   const columns = [
@@ -92,18 +142,28 @@ const Employees = () => {
     { key: 'department', label: 'Department' },
     { key: 'employmentType', label: 'Type' },
     {
-      key: '_id',
+      key: 'id',
       label: 'Actions',
-      render: (id) => (
-        <div className="action-buttons">
-          <button className="btn-icon edit" title="Edit">
-            <BsPencil size={16} />
-          </button>
-          <button className="btn-icon delete" onClick={() => handleDelete(id)} title="Delete">
-            <BsTrash size={16} />
-          </button>
-        </div>
-      ),
+      render: (_, row) => {
+        const rowId = row._id || row.id
+
+        if (!canManageEmployees) {
+          return '-'
+        }
+
+        return (
+          <div className="action-buttons">
+            <button className="btn-icon edit" onClick={() => openEditModal(row)} title="Edit">
+              <BsPencil size={16} />
+            </button>
+            {canDeleteEmployees && (
+              <button className="btn-icon delete" onClick={() => handleDelete(rowId)} title="Delete">
+                <BsTrash size={16} />
+              </button>
+            )}
+          </div>
+        )
+      },
     },
   ]
 
@@ -126,17 +186,27 @@ const Employees = () => {
               className="search-input"
             />
           </div>
-          <Button variant="primary" onClick={() => setShowModal(true)}>
-            <BsPlus size={20} />
-            Add Employee
-          </Button>
+          {canManageEmployees && (
+            <Button variant="primary" onClick={openAddModal}>
+              <BsPlus size={20} />
+              Add Employee
+            </Button>
+          )}
         </div>
 
         <Table columns={columns} data={filteredEmployees} loading={loading} />
       </Card>
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Add New Employee" size="md">
-        <form onSubmit={handleAddEmployee} className="employee-form">
+      <Modal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false)
+          resetForm()
+        }}
+        title={editingEmployee ? 'Edit Employee' : 'Add New Employee'}
+        size="md"
+      >
+        <form onSubmit={handleSaveEmployee} className="employee-form">
           <div className="form-row">
             <Input
               label="First Name"
@@ -220,9 +290,16 @@ const Employees = () => {
 
           <div className="form-actions">
             <Button type="submit" variant="primary">
-              Add Employee
+              {editingEmployee ? 'Save Changes' : 'Add Employee'}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => setShowModal(false)}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setShowModal(false)
+                resetForm()
+              }}
+            >
               Cancel
             </Button>
           </div>

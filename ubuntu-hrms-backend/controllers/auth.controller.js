@@ -21,6 +21,10 @@ const register = async (req, res) => {
       res.json({ token });
     });
   } catch (err) {
+    if (err?.code === '23505') {
+      return res.status(400).json({ msg: 'User already exists' });
+    }
+
     res.status(500).send('Server error');
   }
 };

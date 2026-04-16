@@ -71,10 +71,10 @@ const Register = () => {
         toast.success('Registration successful! Redirecting...')
 
         setTimeout(() => {
-            navigate('/auth/login')
+        navigate('/login')
         }, 500)
         } catch (error) {
-        toast.error(error.message || 'Registration failed. Please try again.')
+      toast.error(typeof error === 'string' ? error : (error?.message || 'Registration failed. Please try again.'))
         } finally {
         setLoading(false)
         }
@@ -127,6 +127,7 @@ const Register = () => {
               }}
               className="form-group-select"
             >
+              <option value="admin">Admin</option>
               <option value="employee">Employee</option>
               <option value="manager">Manager</option>
               <option value="supervisor">Supervisor</option>

@@ -1,28 +1,21 @@
-const express = require('express');
 const dotenv = require('dotenv');
-const connectDB = require('./config/db');
-const cors = require('cors');
+const { connectDB } = require('./config/db');
+const app = require('./app');
 
 dotenv.config();
-connectDB();
 
-const app = express();
+const startServer = async () => {
+  await connectDB();
 
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+};
 
-app.use(cors({
-  origin: FRONTEND_ORIGIN,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'x-auth-token'],
-  credentials: true,
-}));
+if (require.main === module) {
+  startServer().catch((err) => {
+    console.error(err.message);
+    process.exit(1);
+  });
+}
 
-app.use(express.json());
-
-app.use('/api/auth', require('./routes/auth.routes'));
-app.use('/api/employees', require('./routes/employee.routes'));
-app.use('/api/attendance', require('./routes/attendance.routes'));
-
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+module.exports = app;

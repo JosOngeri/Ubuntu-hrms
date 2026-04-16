@@ -1,46 +1,13 @@
 const Attendance = require('../models/Attendance.model');
 const Employee = require('../models/Employee.model');
-
-const toAttendanceDate = (value) => {
-  const date = new Date(value);
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-};
-
-const applyPunchState = (attendance, punchState, punchTime) => {
-  switch (punchState) {
-    case 'checkIn':
-      attendance.checkIn = punchTime;
-      attendance.status = 'Present';
-      return true;
-    case 'breakOut':
-      attendance.breakOut = punchTime;
-      return true;
-    case 'breakIn':
-      attendance.breakIn = punchTime;
-      return true;
-    case 'checkOut':
-      attendance.checkOut = punchTime;
-      return true;
-    default:
-      return false;
-  }
-};
-
-const recomputeTotalHours = (attendance) => {
-  if (!attendance.checkIn || !attendance.checkOut) {
-    attendance.totalHoursWorked = undefined;
-    return;
-  }
-
-  const totalMillis = attendance.checkOut - attendance.checkIn;
-  let breakMillis = 0;
-
-  if (attendance.breakOut && attendance.breakIn && attendance.breakIn > attendance.breakOut) {
-    breakMillis = attendance.breakIn - attendance.breakOut;
-  }
-
-  attendance.totalHoursWorked = Math.max((totalMillis - breakMillis) / (1000 * 60 * 60), 0);
-};
+const {
+  applyPunchState,
+  isValidObjectId,
+  recomputeTotalHours,
+  toAttendanceDate,
+  toDateValue,
+  validateAttendancePayload,
+} = require('../utils/validation');
 
 const findOrCreateAttendance = async (employeeId, punchTime, shift) => {
   const attendanceDate = toAttendanceDate(punchTime);
@@ -51,6 +18,7 @@ const findOrCreateAttendance = async (employeeId, punchTime, shift) => {
       employeeId,
       attendanceDate,
       shift: shift || 'Morning',
+      status: 'Present',
     });
   } else if (!attendance.shift && shift) {
     attendance.shift = shift;
@@ -60,49 +28,50 @@ const findOrCreateAttendance = async (employeeId, punchTime, shift) => {
 };
 
 const pushBiometric = async (req, res) => {
-  const { biometricDeviceId, timestamp, punchState, shift } = req.body;
+  const { normalized, errors } = validateAttendancePayload(req.body, { requireTimestamp: true });
+
+  if (errors.length > 0) {
+    return res.status(400).json({ msg: 'Validation failed', errors });
+  }
+
+  const { biometricDeviceId, timestamp, punchState, shift } = normalized;
 
   try {
     const employee = await Employee.findOne({ biometricDeviceId });
-    if (!employee) return res.status(404).json({ msg: 'Employee not found' });
-
-    const punchTime = new Date(timestamp);
-    if (Number.isNaN(punchTime.getTime())) {
-      return res.status(400).json({ msg: 'Invalid timestamp' });
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee not found' });
     }
 
-    const attendance = await findOrCreateAttendance(employee._id, punchTime, shift);
-    const applied = applyPunchState(attendance, punchState, punchTime);
-    if (!applied) {
-      return res.status(400).json({ msg: 'Invalid punch state' });
-    }
+    const attendance = await findOrCreateAttendance(employee.id, timestamp, shift);
+    applyPunchState(attendance, punchState, timestamp, 'biometric');
 
     recomputeTotalHours(attendance);
 
     await attendance.save();
-    res.status(200).json({ msg: 'Biometric attendance recorded', attendance });
+    return res.status(200).json({ msg: 'Biometric attendance recorded', attendance });
   } catch (err) {
-    res.status(500).send('Server error');
+    return res.status(500).send('Server error');
   }
 };
 
 const manualSelfPunch = async (req, res) => {
-  const { biometricDeviceId, punchState, shift } = req.body;
+  const { normalized, errors } = validateAttendancePayload(req.body);
 
-  if (!biometricDeviceId || !punchState) {
-    return res.status(400).json({ msg: 'biometricDeviceId and punchState are required' });
+  if (errors.length > 0) {
+    return res.status(400).json({ msg: 'Validation failed', errors });
   }
+
+  const { biometricDeviceId, punchState, shift } = normalized;
 
   try {
     const employee = await Employee.findOne({ biometricDeviceId });
-    if (!employee) return res.status(404).json({ msg: 'Employee not found' });
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee not found' });
+    }
 
     const serverNow = new Date();
-    const attendance = await findOrCreateAttendance(employee._id, serverNow, shift);
-    const applied = applyPunchState(attendance, punchState, serverNow);
-    if (!applied) {
-      return res.status(400).json({ msg: 'Invalid punch state' });
-    }
+    const attendance = await findOrCreateAttendance(employee.id, serverNow, shift);
+    applyPunchState(attendance, punchState, serverNow, 'manual-self');
 
     recomputeTotalHours(attendance);
     await attendance.save();
@@ -118,29 +87,25 @@ const manualSelfPunch = async (req, res) => {
 };
 
 const managerPunchForEmployee = async (req, res) => {
-  const { employeeId, biometricDeviceId, punchState, timestamp, shift } = req.body;
+  const { normalized, errors } = validateAttendancePayload(req.body, { requireTimestamp: true });
 
-  if (!punchState || !timestamp) {
-    return res.status(400).json({ msg: 'punchState and timestamp are required' });
+  if (errors.length > 0) {
+    return res.status(400).json({ msg: 'Validation failed', errors });
   }
+
+  const { employeeId, biometricDeviceId, punchState, timestamp, shift } = normalized;
 
   try {
     const employee = employeeId
       ? await Employee.findById(employeeId)
       : await Employee.findOne({ biometricDeviceId });
 
-    if (!employee) return res.status(404).json({ msg: 'Employee not found' });
-
-    const punchTime = new Date(timestamp);
-    if (Number.isNaN(punchTime.getTime())) {
-      return res.status(400).json({ msg: 'Invalid timestamp' });
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee not found' });
     }
 
-    const attendance = await findOrCreateAttendance(employee._id, punchTime, shift);
-    const applied = applyPunchState(attendance, punchState, punchTime);
-    if (!applied) {
-      return res.status(400).json({ msg: 'Invalid punch state' });
-    }
+    const attendance = await findOrCreateAttendance(employee.id, timestamp, shift);
+    applyPunchState(attendance, punchState, timestamp, 'manual-manager');
 
     recomputeTotalHours(attendance);
     await attendance.save();
@@ -154,27 +119,51 @@ const managerPunchForEmployee = async (req, res) => {
   }
 };
 
-// Get attendance (unchanged)
 const getAttendance = async (req, res) => {
   try {
-    const attendance = await Attendance.find({ employeeId: req.params.employeeId });
-    res.json(attendance);
+    const { employeeId } = req.params;
+
+    if (!isValidObjectId(employeeId)) {
+      return res.status(400).json({ msg: 'Invalid employee id' });
+    }
+
+    if (req.user?.role === 'employee' && String(req.user?.id) !== String(employeeId)) {
+      return res.status(403).json({ msg: 'Access denied' });
+    }
+
+    const attendance = await Attendance.findByEmployeeId(employeeId);
+    return res.json(attendance);
   } catch (err) {
-    res.status(500).send('Server error');
+    return res.status(500).send('Server error');
   }
 };
 
 const adjustAttendance = async (req, res) => {
   try {
-    const attendance = await Attendance.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!attendance) return res.status(404).json({ msg: 'Attendance not found' });
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ msg: 'Invalid attendance id' });
+    }
+
+    const attendance = await Attendance.findById(req.params.id);
+    if (!attendance) {
+      return res.status(404).json({ msg: 'Attendance not found' });
+    }
+
+    const allowedFields = ['attendanceDate', 'status', 'shift', 'checkIn', 'breakOut', 'breakIn', 'checkOut', 'punchState'];
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        attendance[field] = field === 'attendanceDate' || field === 'checkIn' || field === 'breakOut' || field === 'breakIn' || field === 'checkOut'
+          ? toDateValue(req.body[field])
+          : req.body[field];
+      }
+    }
 
     recomputeTotalHours(attendance);
     await attendance.save();
 
-    res.json(attendance);
+    return res.json(attendance);
   } catch (err) {
-    res.status(500).send('Server error');
+    return res.status(500).send('Server error');
   }
 };
 
