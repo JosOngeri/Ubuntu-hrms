@@ -90,6 +90,21 @@ const initDatabase = async () => {
     )
   `);
 
+  // Professional Profile table for job applications
+  await query(`
+    CREATE TABLE IF NOT EXISTS profiles (
+      id SERIAL PRIMARY KEY,
+      userId INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      fullName VARCHAR(255),
+      skills TEXT[],
+      certifications TEXT[],
+      workHistory JSONB,
+      education JSONB,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   await query(`
     CREATE TABLE IF NOT EXISTS attendance (
       id BIGSERIAL PRIMARY KEY,
