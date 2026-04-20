@@ -61,6 +61,27 @@ const defaultProfile = {
   documents: [],
 };
 
+const normalizeProfile = (raw = {}) => ({
+  ...raw,
+  userId: raw.userId ?? raw.userid,
+  fullName: raw.fullName ?? raw.fullname,
+  photoUrl: raw.photoUrl ?? raw.photourl,
+  dateOfBirth: raw.dateOfBirth ?? raw.dateofbirth,
+  nationalId: raw.nationalId ?? raw.nationalid,
+  emergencyContact: raw.emergencyContact ?? raw.emergencycontact,
+  professionalHeadline: raw.professionalHeadline ?? raw.professionalheadline,
+  employeeId: raw.employeeId ?? raw.employeeid,
+  jobTitle: raw.jobTitle ?? raw.jobtitle,
+  dateOfJoining: raw.dateOfJoining ?? raw.dateofjoining,
+  employmentType: raw.employmentType ?? raw.employmenttype,
+  workLocation: raw.workLocation ?? raw.worklocation,
+  reportingManager: raw.reportingManager ?? raw.reportingmanager,
+  workHistory: raw.workHistory ?? raw.workhistory,
+  leaveInfo: raw.leaveInfo ?? raw.leaveinfo,
+  createdAt: raw.createdAt ?? raw.createdat,
+  updatedAt: raw.updatedAt ?? raw.updatedat,
+});
+
 export default function ProfileUpdateForm() {
   const [form, setForm] = useState(defaultProfile);
   const [loading, setLoading] = useState(true);
@@ -71,7 +92,7 @@ export default function ProfileUpdateForm() {
       setLoading(true);
       try {
         const res = await api.get('/profile/me');
-        setForm({ ...defaultProfile, ...res.data });
+        setForm({ ...defaultProfile, ...normalizeProfile(res.data || {}) });
       } catch {
         setForm(defaultProfile);
       } finally {

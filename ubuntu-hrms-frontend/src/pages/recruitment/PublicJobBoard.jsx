@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Card  from '../../components/common/Card';
 import  Button  from '../../components/common/Button';
 import  Table  from '../../components/common/Table';
@@ -8,6 +9,7 @@ import DashboardLayout from '../../components/DashboardLayout'
 export default function PublicJobBoard() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   const fetchJobs = async () => {
     setLoading(true);
@@ -40,7 +42,7 @@ export default function PublicJobBoard() {
               key: 'actions',
               label: '',
               render: (_, row) => (
-                <Button variant="primary" size="sm" href={`/recruitment/apply/${row.id}`}>Apply</Button>
+                <Button variant="primary" size="sm" onClick={() => navigate(`/recruitment/apply/${row.id}`)}>Apply</Button>
               ),
             },
           ]}

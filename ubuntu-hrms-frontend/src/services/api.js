@@ -45,6 +45,7 @@ api.interceptors.response.use(
 // Employees
 export const employeeAPI = {
   getAll: () => api.get('/api/employees'),
+  getMe: () => api.get('/api/employees/me'),
   getById: (id) => api.get(`/api/employees/${id}`),
   create: (data) => api.post('/api/employees', data),
   update: (id, data) => api.put(`/api/employees/${id}`, data),

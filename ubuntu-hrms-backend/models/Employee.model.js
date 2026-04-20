@@ -64,6 +64,19 @@ class Employee {
   }
 
   static async findOne(criteria = {}) {
+    if (criteria.userId !== undefined) {
+      const normalizedUserId = normalizeId(criteria.userId);
+      if (!normalizedUserId) {
+        return null;
+      }
+
+      const { rows } = await query(
+        'SELECT * FROM employees WHERE user_id = $1 LIMIT 1',
+        [normalizedUserId]
+      );
+      return mapRow(rows[0]);
+    }
+
     if (criteria.biometricDeviceId !== undefined) {
       const { rows } = await query(
         'SELECT * FROM employees WHERE biometric_device_id = $1 LIMIT 1',

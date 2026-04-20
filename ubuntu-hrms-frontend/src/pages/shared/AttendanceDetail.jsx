@@ -17,8 +17,9 @@ export default function AttendanceDetail() {
     const fetchAttendance = async () => {
       setLoading(true);
       try {
-        const res = await api.get(`/attendance/${attendanceId}`);
-        setAttendance(res.data);
+        const res = await api.get(`/attendance/record/${attendanceId}`);
+        const attendanceRecord = Array.isArray(res.data) ? res.data[0] : res.data;
+        setAttendance(attendanceRecord || null);
       } catch (err) {
         toast.error('Failed to fetch attendance details');
         navigate('/employee/attendance');
@@ -95,7 +96,7 @@ export default function AttendanceDetail() {
     }
   };
 
-  const attendanceDate = new Date(attendance.date || attendance.createdAt).toLocaleDateString();
+  const attendanceDate = new Date(attendance.attendanceDate || attendance.date || attendance.createdAt).toLocaleDateString();
 
   return (
     <DashboardLayout>

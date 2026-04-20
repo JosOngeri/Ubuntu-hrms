@@ -4,6 +4,8 @@ const pool = require('../config/db').pool;
 
 const PROFILE_TABLE = 'profiles';
 
+const toJsonb = (value, fallback = null) => JSON.stringify(value ?? fallback);
+
 const createTable = async () => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ${PROFILE_TABLE} (
@@ -133,10 +135,10 @@ const Profile = {
         updatedAt = CURRENT_TIMESTAMP
       RETURNING *`,
       [
-        userId, data.fullName, data.photoUrl, data.email, data.phone, data.address, data.dateOfBirth, data.nationalId, data.emergencyContact, data.professionalHeadline, data.summary,
+        userId, data.fullName, data.photoUrl, data.email, data.phone, data.address, data.dateOfBirth, data.nationalId, toJsonb(data.emergencyContact, {}), data.professionalHeadline, data.summary,
         data.employeeId, data.jobTitle, data.department, data.status, data.dateOfJoining, data.employmentType, data.workLocation, data.reportingManager,
-        data.certifications, data.workHistory, data.education, data.skills, data.projects, data.awards, data.languages, data.memberships, data.references, data.volunteer, data.publications, data.interests,
-        data.payroll, data.leaveInfo, data.contracts, data.performance, data.documents
+        data.certifications, toJsonb(data.workHistory, []), toJsonb(data.education, []), data.skills, toJsonb(data.projects, []), toJsonb(data.awards, []), toJsonb(data.languages, []), toJsonb(data.memberships, []), toJsonb(data.references, []), toJsonb(data.volunteer, []), toJsonb(data.publications, []), data.interests,
+        toJsonb(data.payroll, {}), toJsonb(data.leaveInfo, {}), toJsonb(data.contracts, []), toJsonb(data.performance, {}), toJsonb(data.documents, [])
       ]
     );
     return res.rows[0];

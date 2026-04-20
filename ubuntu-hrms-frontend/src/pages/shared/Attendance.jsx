@@ -58,24 +58,28 @@ const Attendance = ({ role = 'employee' }) => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        if (user?.userId || user?.id) {
-          const res = await employeeAPI.getById(user.userId || user.id)
-          setEmployeeProfile(res.data)
-        }
+        if (!isEmployee) return
+        const res = await employeeAPI.getMe()
+        setEmployeeProfile(res.data)
       } catch {
         setEmployeeProfile(null)
       }
     }
     fetchProfile()
-  }, [user?.userId, user?.id])
+  }, [isEmployee, user?.userId, user?.id])
 
   useEffect(() => {
     if (canManageAttendance) {
       fetchEmployees()
       return
     }
+
+    if (isEmployee && !employeeProfile?.id && !employeeProfile?._id) {
+      return
+    }
+
     fetchAttendance()
-  }, [user?.id, user?.userId, role])
+  }, [user?.id, user?.userId, role, isEmployee, employeeProfile?.id, employeeProfile?._id])
 
   useEffect(() => {
     if (canManageAttendance) {
@@ -112,7 +116,7 @@ const Attendance = ({ role = 'employee' }) => {
 
       const employeeId = canManageAttendance
         ? empId
-        : (empId || user?.userId || user?.id)
+        : (empId || employeeProfile?.id || employeeProfile?._id || user?.userId || user?.id)
 
       if (!employeeId) {
         setAttendance([])

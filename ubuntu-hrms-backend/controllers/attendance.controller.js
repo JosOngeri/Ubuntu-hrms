@@ -87,15 +87,36 @@ const manualSelfPunch = async (req, res) => {
   const { geolocation } = req.body;
 
   try {
-    const employee = await Employee.findOne({ biometricDeviceId });
+    let employee = null;
+
+    if (req.user?.id) {
+      employee = await Employee.findOne({ userId: req.user.id });
+    }
+
+    if (!employee && biometricDeviceId) {
+      employee = await Employee.findOne({ biometricDeviceId });
+    }
+
     if (!employee) {
       return res.status(404).json({ msg: 'Employee not found' });
     }
 
+    if (employee.biometricDeviceId && biometricDeviceId && employee.biometricDeviceId !== biometricDeviceId) {
+      return res.status(400).json({
+        msg: 'Biometric device mismatch for logged-in user',
+        expectedBiometricDeviceId: employee.biometricDeviceId,
+      });
+    }
+
     // Geolocation validation
-    if (geolocation && geolocation.lat && geolocation.lng) {
+    const hasValidGeo =
+      geolocation &&
+      Number.isFinite(Number(geolocation.lat)) &&
+      Number.isFinite(Number(geolocation.lng));
+
+    if (hasValidGeo) {
       const dist = haversineDistance(
-        geolocation.lat, geolocation.lng,
+        Number(geolocation.lat), Number(geolocation.lng),
         OFFICE_LOCATION.lat, OFFICE_LOCATION.lng
       );
       if (dist > ALLOWED_RADIUS_METERS && !isEmployeeAllowedRemote(employee)) {
@@ -118,7 +139,8 @@ const manualSelfPunch = async (req, res) => {
       attendance,
     });
   } catch (err) {
-    return res.status(500).send('Server error');
+    console.error('manualSelfPunch error:', err);
+    return res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 
@@ -157,24 +179,61 @@ const managerPunchForEmployee = async (req, res) => {
 
 const getAttendance = async (req, res) => {
   try {
-    const { employeeId } = req.params;
+    const { employeeId: requestedEmployeeId } = req.params;
 
-    if (!isValidObjectId(employeeId)) {
+    if (!isValidObjectId(requestedEmployeeId)) {
       return res.status(400).json({ msg: 'Invalid employee id' });
     }
 
-    if (req.user?.role === 'employee' && String(req.user?.id) !== String(employeeId)) {
-      return res.status(403).json({ msg: 'Access denied' });
+    let employee = null;
+
+    if (req.user?.role === 'employee') {
+      employee = await Employee.findOne({ userId: req.user?.id });
+      if (!employee) {
+        return res.status(404).json({ msg: 'Employee profile not found for logged in user' });
+      }
+    } else {
+      employee = await Employee.findById(requestedEmployeeId);
     }
-    // Only allow for active employees
-    const employee = await Employee.findById(employeeId);
-    if (!employee || employee.status !== 'active') {
+
+    if (!employee || String(employee.status || '').toLowerCase() !== 'active') {
       return res.status(404).json({ msg: 'Active employee not found' });
     }
-    const attendance = await Attendance.findByEmployeeId(employeeId);
+
+    const attendance = await Attendance.findByEmployeeId(employee.id);
     return res.json(attendance);
   } catch (err) {
     return res.status(500).send('Server error');
+  }
+};
+
+const getAttendanceById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ msg: 'Invalid attendance id' });
+    }
+
+    const attendance = await Attendance.findById(id);
+    if (!attendance) {
+      return res.status(404).json({ msg: 'Attendance not found' });
+    }
+
+    if (req.user?.role === 'employee') {
+      const employee = await Employee.findOne({ userId: req.user?.id });
+      if (!employee) {
+        return res.status(404).json({ msg: 'Employee profile not found for logged in user' });
+      }
+
+      if (String(attendance.employeeId) !== String(employee.id)) {
+        return res.status(403).json({ msg: 'Access denied' });
+      }
+    }
+
+    return res.json(attendance);
+  } catch (err) {
+    return res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 
@@ -212,5 +271,6 @@ module.exports = {
   manualSelfPunch,
   managerPunchForEmployee,
   getAttendance,
+  getAttendanceById,
   adjustAttendance,
 };

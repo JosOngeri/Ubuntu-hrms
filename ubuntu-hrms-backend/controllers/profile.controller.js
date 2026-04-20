@@ -15,14 +15,7 @@ const profileController = {
     try {
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ msg: 'Unauthorized' });
-      const { fullName, skills, certifications, workHistory, education } = req.body;
-      const profile = await Profile.createOrUpdate(userId, {
-        fullName,
-        skills,
-        certifications,
-        workHistory,
-        education,
-      });
+      const profile = await Profile.createOrUpdate(userId, req.body || {});
       res.json(profile);
     } catch (err) {
       res.status(400).json({ msg: 'Failed to update profile', error: err.message });

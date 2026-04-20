@@ -7,6 +7,26 @@ import api from '../../services/api';
 import { toast } from 'react-toastify';
 import { BsArrowLeft, BsPerson, BsEnvelope, BsPhone, BsFileEarmarkText, BsClock } from 'react-icons/bs';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const toCvUrl = (cvPath) => {
+  if (!cvPath) return null;
+  const normalized = String(cvPath).replace(/\\/g, '/');
+  return `${API_BASE_URL}/${normalized.replace(/^\/+/, '')}`;
+};
+
+const normalizeApplication = (raw = {}) => ({
+  ...raw,
+  applicantName: raw.applicantName ?? raw.applicantname ?? raw.fullName ?? raw.fullname ?? '',
+  applicantEmail: raw.applicantEmail ?? raw.applicantemail ?? raw.email ?? '',
+  applicantPhone: raw.applicantPhone ?? raw.applicantphone ?? raw.phone ?? '',
+  cvPath: raw.cvPath ?? raw.cvpath ?? null,
+  coverLetter: raw.coverLetter ?? raw.coverletter ?? '',
+  status: raw.status ?? 'pending',
+  applicationData: raw.applicationData ?? raw.applicationdata ?? null,
+  appliedAt: raw.appliedAt ?? raw.appliedat ?? raw.createdAt ?? raw.createdat ?? null,
+});
+
 export default function ApplicantDetail() {
   const { jobId, applicantId } = useParams();
   const navigate = useNavigate();
@@ -20,8 +40,9 @@ export default function ApplicantDetail() {
       setLoading(true);
       try {
         const res = await api.get(`/jobs/${jobId}/applicants/${applicantId}`);
-        setApplicant(res.data);
-        setStatus(res.data.status || 'pending');
+        const normalized = normalizeApplication(res.data || {});
+        setApplicant(normalized);
+        setStatus(normalized.status || 'pending');
       } catch (err) {
         toast.error('Failed to fetch applicant details');
         navigate(`/recruitment/jobs/${jobId}/applicants`);
@@ -112,7 +133,7 @@ export default function ApplicantDetail() {
               <BsPerson size={32} className="text-primary-700" />
             </div>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold">{applicant.fullName || applicant.name || 'Unnamed Applicant'}</h2>
+              <h2 className="text-2xl font-bold">{applicant.applicantName || 'Unnamed Applicant'}</h2>
               <div className="flex items-center gap-4 mt-2">
                 <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeColor(applicant.status)}`}>
                   {applicant.status || 'pending'}
@@ -130,8 +151,8 @@ export default function ApplicantDetail() {
                 Email
               </label>
               <p className="text-lg font-semibold mt-1">
-                <a href={`mailto:${applicant.email}`} className="text-primary-600 hover:underline">
-                  {applicant.email || 'N/A'}
+                <a href={`mailto:${applicant.applicantEmail}`} className="text-primary-600 hover:underline">
+                  {applicant.applicantEmail || 'N/A'}
                 </a>
               </p>
             </div>
@@ -142,7 +163,7 @@ export default function ApplicantDetail() {
                 <BsPhone size={14} />
                 Phone
               </label>
-              <p className="text-lg font-semibold mt-1">{applicant.phone || 'N/A'}</p>
+              <p className="text-lg font-semibold mt-1">{applicant.applicantPhone || 'N/A'}</p>
             </div>
 
             {/* Applied At */}
@@ -152,7 +173,7 @@ export default function ApplicantDetail() {
                 Applied At
               </label>
               <p className="text-lg font-semibold mt-1">
-                {applicant.createdAt ? new Date(applicant.createdAt).toLocaleDateString() : 'N/A'}
+                {applicant.appliedAt ? new Date(applicant.appliedAt).toLocaleDateString() : 'N/A'}
               </p>
             </div>
 
@@ -163,8 +184,8 @@ export default function ApplicantDetail() {
                 CV Submitted
               </label>
               <p className="text-lg font-semibold mt-1">
-                {applicant.cvUrl ? (
-                  <a href={applicant.cvUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                {applicant.cvPath ? (
+                  <a href={toCvUrl(applicant.cvPath)} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
                     View CV
                   </a>
                 ) : (
@@ -179,6 +200,37 @@ export default function ApplicantDetail() {
             <div className="mb-6 pb-6 border-b border-slate-200 dark:border-slate-700">
               <label className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2 block">Cover Letter</label>
               <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{applicant.coverLetter}</p>
+            </div>
+          )}
+
+          {!!applicant.applicationData && (
+            <div className="mb-6 pb-6 border-b border-slate-200 dark:border-slate-700">
+              <label className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3 block">Extended Application Data</label>
+              <div className="space-y-3 text-sm">
+                <div><strong>Mode:</strong> {applicant.applicationData.applicationMode || 'scratch'}</div>
+                <div>
+                  <strong>Work History:</strong>{' '}
+                  {Array.isArray(applicant.applicationData.workHistory) && applicant.applicationData.workHistory.length
+                    ? applicant.applicationData.workHistory.join(', ')
+                    : '-'}
+                </div>
+                <div>
+                  <strong>Education:</strong>{' '}
+                  {Array.isArray(applicant.applicationData.education) && applicant.applicationData.education.length
+                    ? applicant.applicationData.education.join(', ')
+                    : '-'}
+                </div>
+                <div>
+                  <strong>References:</strong>{' '}
+                  {Array.isArray(applicant.applicationData.references) && applicant.applicationData.references.length
+                    ? applicant.applicationData.references.join(', ')
+                    : '-'}
+                </div>
+                <div>
+                  <strong>Additional Notes:</strong>{' '}
+                  {applicant.applicationData.additionalInfo || '-'}
+                </div>
+              </div>
             </div>
           )}
 

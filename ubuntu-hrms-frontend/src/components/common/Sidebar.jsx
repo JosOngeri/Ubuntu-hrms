@@ -57,6 +57,7 @@ const Sidebar = ({ isOpen, onClose }) => {
       { path: '/employee/attendance', label: 'My Attendance', icon: BsClipboardCheck },
       { path: '/employee/punch', label: 'Manual Punch', icon: BsPersonCheck },
       { path: '/recruitment/jobs-board', label: 'Job Board', icon: BsClipboard },
+      { path: '/recruitment/my-applications', label: 'My Applications', icon: BsFileText },
       ...profileItems,
     ];
 

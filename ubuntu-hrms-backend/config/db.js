@@ -111,8 +111,32 @@ const initDatabase = async () => {
       applicantEmail VARCHAR(255) NOT NULL,
       applicantPhone VARCHAR(50),
       cvPath VARCHAR(255),
+      coverLetter TEXT,
+      applicationData JSONB,
+      recruiterAnnouncement TEXT,
       status VARCHAR(20) DEFAULT 'pending',
       appliedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await query(`ALTER TABLE job_applications ADD COLUMN IF NOT EXISTS coverletter TEXT`);
+  await query(`ALTER TABLE job_applications ADD COLUMN IF NOT EXISTS applicationdata JSONB`);
+  await query(`ALTER TABLE job_applications ADD COLUMN IF NOT EXISTS recruiterannouncement TEXT`);
+
+  // Legacy and manual linking of applications to users.
+  await query(`ALTER TABLE job_applications ADD COLUMN IF NOT EXISTS user_id BIGINT`);
+  await query(`ALTER TABLE job_applications ADD COLUMN IF NOT EXISTS linked_via TEXT`);
+  await query(`ALTER TABLE job_applications ADD COLUMN IF NOT EXISTS linked_at TIMESTAMPTZ`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS application_user_links (
+      id SERIAL PRIMARY KEY,
+      application_id INTEGER NOT NULL UNIQUE REFERENCES job_applications(id) ON DELETE CASCADE,
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      link_reason TEXT,
+      linked_by TEXT DEFAULT 'migration',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
 
@@ -185,6 +209,30 @@ const initDatabase = async () => {
 
   await query(`
     UPDATE users SET updated_at = NOW() WHERE updated_at IS NULL
+  `).catch(() => {});
+
+  // Backfill exact matches first, then leave ambiguous rows for manual linking.
+  await query(`
+    WITH exact_email_matches AS (
+      SELECT ja.id AS application_id, u.id AS user_id
+      FROM job_applications ja
+      JOIN users u ON LOWER(TRIM(ja.applicantemail)) = LOWER(TRIM(u.email))
+      WHERE ja.user_id IS NULL
+    )
+    UPDATE job_applications ja
+    SET user_id = m.user_id,
+        linked_via = 'migration:email',
+        linked_at = NOW()
+    FROM exact_email_matches m
+    WHERE ja.id = m.application_id
+  `).catch(() => {});
+
+  await query(`
+    INSERT INTO application_user_links (application_id, user_id, link_reason, linked_by)
+    SELECT ja.id, ja.user_id, 'migration:email', 'migration'
+    FROM job_applications ja
+    WHERE ja.user_id IS NOT NULL
+    ON CONFLICT (application_id) DO NOTHING
   `).catch(() => {});
 };
 

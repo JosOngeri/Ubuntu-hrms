@@ -10,6 +10,26 @@ import { toast } from 'react-toastify';
 import DashboardLayout from '../../components/DashboardLayout';
 import { downloadPdfReport } from '../../utils/reportExport';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const toCvUrl = (cvPath) => {
+  if (!cvPath) return null;
+  const normalized = String(cvPath).replace(/\\/g, '/');
+  return `${API_BASE_URL}/${normalized.replace(/^\/+/, '')}`;
+};
+
+const normalizeApplication = (raw = {}) => ({
+  ...raw,
+  id: raw.id,
+  applicantName: raw.applicantName ?? raw.applicantname ?? raw.fullName ?? raw.fullname ?? '',
+  applicantEmail: raw.applicantEmail ?? raw.applicantemail ?? raw.email ?? '',
+  applicantPhone: raw.applicantPhone ?? raw.applicantphone ?? raw.phone ?? '',
+  cvPath: raw.cvPath ?? raw.cvpath ?? null,
+  coverLetter: raw.coverLetter ?? raw.coverletter ?? '',
+  status: raw.status ?? 'pending',
+  applicationData: raw.applicationData ?? raw.applicationdata ?? null,
+  appliedAt: raw.appliedAt ?? raw.appliedat ?? raw.createdAt ?? raw.createdat ?? null,
+});
+
 
 export default function ApplicantReviewDashboard({ jobId }) {
   const navigate = useNavigate();
@@ -17,6 +37,7 @@ export default function ApplicantReviewDashboard({ jobId }) {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [status, setStatus] = useState('');
+  const [recruiterAnnouncement, setRecruiterAnnouncement] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -25,7 +46,7 @@ export default function ApplicantReviewDashboard({ jobId }) {
     setLoading(true);
     try {
       const res = await api.get(`/jobs/${jobId}/applications`);
-      setApplications(res.data || []);
+      setApplications(Array.isArray(res.data) ? res.data.map(normalizeApplication) : []);
     } catch (err) {
       toast.error('Failed to load applications');
     } finally {
@@ -40,12 +61,13 @@ export default function ApplicantReviewDashboard({ jobId }) {
   const openModal = (app) => {
     setSelected(app);
     setStatus(app.status);
+    setRecruiterAnnouncement(app.recruiterAnnouncement || '');
     setShowModal(true);
   };
 
   const handleStatusUpdate = async () => {
     try {
-      await api.put(`/jobs/applications/${selected.id}/status`, { status });
+      await api.put(`/jobs/applications/${selected.id}/status`, { status, recruiterAnnouncement });
       toast.success('Status updated');
       setShowModal(false);
       fetchApplications();
@@ -117,7 +139,7 @@ export default function ApplicantReviewDashboard({ jobId }) {
             {
               key: 'cvPath',
               label: 'CV',
-              render: (cvPath) => cvPath ? <a href={`/${cvPath}`} target="_blank" rel="noopener noreferrer">Download</a> : '-',
+              render: (cvPath) => cvPath ? <a href={toCvUrl(cvPath)} target="_blank" rel="noopener noreferrer">Download</a> : '-',
             },
             {
               key: 'actions',
@@ -140,7 +162,8 @@ export default function ApplicantReviewDashboard({ jobId }) {
             <div><strong>Name:</strong> {selected.applicantName}</div>
             <div><strong>Email:</strong> {selected.applicantEmail}</div>
             <div><strong>Phone:</strong> {selected.applicantPhone}</div>
-            <div><strong>CV:</strong> {selected.cvPath ? <a href={`/${selected.cvPath}`} target="_blank" rel="noopener noreferrer">Download CV</a> : '-'}</div>
+            <div><strong>CV:</strong> {selected.cvPath ? <a href={toCvUrl(selected.cvPath)} target="_blank" rel="noopener noreferrer">Download CV</a> : '-'}</div>
+            <div><strong>Cover Letter:</strong> {selected.coverLetter || '-'}</div>
             <div className="form-group">
               <label>Status</label>
               <select className="form-input" value={status} onChange={e => setStatus(e.target.value)}>
@@ -149,6 +172,16 @@ export default function ApplicantReviewDashboard({ jobId }) {
                 <option value="rejected">Rejected</option>
                 <option value="hired">Hired</option>
               </select>
+            </div>
+            <div className="form-group">
+              <label>Recruiter Announcement</label>
+              <textarea
+                className="form-input"
+                rows={4}
+                value={recruiterAnnouncement}
+                onChange={(e) => setRecruiterAnnouncement(e.target.value)}
+                placeholder="Add an update, interview note, or next-step instruction"
+              />
             </div>
             <div className="flex gap-2 justify-end">
               <Button variant="primary" onClick={handleStatusUpdate}>Update</Button>

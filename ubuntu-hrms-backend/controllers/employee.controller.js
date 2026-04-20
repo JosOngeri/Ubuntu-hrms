@@ -59,6 +59,24 @@ const getEmployees = async (req, res) => {
   }
 };
 
+const getMyEmployee = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ msg: 'Unauthorized' });
+    }
+
+    const employee = await Employee.findOne({ userId });
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee profile not found for current user' });
+    }
+
+    return res.json(employee.toJSON());
+  } catch (err) {
+    return res.status(500).json({ msg: 'Server error', error: err.message });
+  }
+};
+
 const getEmployeeById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -204,4 +222,4 @@ const deleteEmployee = async (req, res) => {
   }
 };
 
-module.exports = { getEmployees, getEmployeeById, addEmployee, updateEmployee, deleteEmployee };
+module.exports = { getEmployees, getMyEmployee, getEmployeeById, addEmployee, updateEmployee, deleteEmployee };

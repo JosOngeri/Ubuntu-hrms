@@ -10,6 +10,7 @@ import JobPostingManagement from './pages/recruitment/JobPostingManagement';
 import PublicJobBoard from './pages/recruitment/PublicJobBoard';
 import JobApplicationForm from './pages/recruitment/JobApplicationForm';
 import ApplicantReviewDashboard from './pages/recruitment/ApplicantReviewDashboard';
+import MyApplications from './pages/recruitment/MyApplications';
 import ProfileView from './pages/recruitment/ProfileView';
 import ProfileUpdateForm from './pages/recruitment/ProfileUpdateForm';
 import JobDetail from './pages/recruitment/JobDetail';
@@ -34,6 +35,7 @@ import EmployeeDetail from './pages/admin/EmployeeDetail';
 // Manager & Employee Pages
 import ManagerDashboard from './pages/manager/Dashboard';
 import EmployeeDashboard from './pages/employee/Dashboard';
+import Punch from './pages/employee/Punch';
 import AttendancePage from './pages/shared/Attendance';
 import AttendanceDetail from './pages/shared/AttendanceDetail';
 
@@ -176,6 +178,14 @@ function App() {
               }
             />
             <Route
+              path="/employee/punch"
+              element={
+                <ProtectedRoute allowedRoles={['employee']}>
+                  <Punch />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/employee/attendance/:attendanceId"
               element={
                 <ProtectedRoute allowedRoles={['employee']}>
@@ -203,6 +213,14 @@ function App() {
             />
             <Route path="/recruitment/jobs-board" element={<PublicJobBoard />} />
             <Route path="/recruitment/apply/:jobId" element={<JobApplicationFormWrapper />} />
+            <Route
+              path="/recruitment/my-applications"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'manager', 'hr', 'employee', 'supervisor']}>
+                  <MyApplications />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/recruitment/jobs/:jobId/applicants"
               element={

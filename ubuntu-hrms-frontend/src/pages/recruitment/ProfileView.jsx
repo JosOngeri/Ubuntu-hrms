@@ -8,6 +8,27 @@ import api from '../../services/api';
 import { BsPerson, BsBriefcase, BsFileEarmarkText, BsEnvelope, BsPhone, BsLinkedin, BsCalendar, BsGeoAlt, BsUpload } from 'react-icons/bs';
 import DashboardLayout from '../../components/DashboardLayout'
 
+const normalizeProfile = (raw = {}) => ({
+  ...raw,
+  userId: raw.userId ?? raw.userid,
+  fullName: raw.fullName ?? raw.fullname,
+  photoUrl: raw.photoUrl ?? raw.photourl,
+  dateOfBirth: raw.dateOfBirth ?? raw.dateofbirth,
+  nationalId: raw.nationalId ?? raw.nationalid,
+  emergencyContact: raw.emergencyContact ?? raw.emergencycontact,
+  professionalHeadline: raw.professionalHeadline ?? raw.professionalheadline,
+  employeeId: raw.employeeId ?? raw.employeeid,
+  jobTitle: raw.jobTitle ?? raw.jobtitle,
+  dateOfJoining: raw.dateOfJoining ?? raw.dateofjoining,
+  employmentType: raw.employmentType ?? raw.employmenttype,
+  workLocation: raw.workLocation ?? raw.worklocation,
+  reportingManager: raw.reportingManager ?? raw.reportingmanager,
+  workHistory: raw.workHistory ?? raw.workhistory,
+  leaveInfo: raw.leaveInfo ?? raw.leaveinfo,
+  createdAt: raw.createdAt ?? raw.createdat,
+  updatedAt: raw.updatedAt ?? raw.updatedat,
+});
+
 
 export default function ProfileView() {
   const [profile, setProfile] = useState(null);
@@ -19,12 +40,12 @@ export default function ProfileView() {
     const fetchProfiles = async () => {
       setLoading(true);
       try {
-        // Portal profile (basic)
         const res = await api.get('/profile/me');
-        setProfile(res.data && Object.keys(res.data).length > 0 ? res.data : null);
-        // Work profile (detailed)
-        const res2 = await api.get('/profile/work');
-        setWorkProfile(res2.data && Object.keys(res2.data).length > 0 ? res2.data : null);
+        const normalizedProfile = normalizeProfile(res.data || {});
+        const hasProfile = Object.keys(normalizedProfile).length > 0;
+        // The backend currently stores both portal and work fields in one profile record.
+        setProfile(hasProfile ? normalizedProfile : null);
+        setWorkProfile(hasProfile ? normalizedProfile : null);
       } catch {
         setProfile(null);
         setWorkProfile(null);
