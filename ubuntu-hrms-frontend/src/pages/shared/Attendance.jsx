@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../../components/DashboardLayout'
 import Card from '../../components/common/Card'
 import Table from '../../components/common/Table'
@@ -9,6 +10,7 @@ import { attendanceAPI, employeeAPI } from '../../services/api'
 import { useAuth } from '../../contexts/AuthContext'
 import { toast } from 'react-toastify'
 import { BsPencil, BsClock } from 'react-icons/bs'
+import { downloadPdfReport } from '../../utils/reportExport'
 import {
   Select,
   SelectTrigger,
@@ -19,6 +21,7 @@ import {
 // import './Attendance.css'
 
 const Attendance = ({ role = 'employee' }) => {
+  const navigate = useNavigate()
   const { user } = useAuth()
 
   const isEmployee = role === 'employee'
@@ -44,15 +47,33 @@ const Attendance = ({ role = 'employee' }) => {
     checkOut: '',
   })
   const [selectedEmployee, setSelectedEmployee] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [biometricDeviceId, setBiometricDeviceId] = useState(localStorage.getItem('biometricDeviceId') || 'BIO-001')
   const [employees, setEmployees] = useState([])
+  const [employeeProfile, setEmployeeProfile] = useState(null)
+
+
+  // Fetch employee profile for status and privacy
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        if (user?.userId || user?.id) {
+          const res = await employeeAPI.getById(user.userId || user.id)
+          setEmployeeProfile(res.data)
+        }
+      } catch {
+        setEmployeeProfile(null)
+      }
+    }
+    fetchProfile()
+  }, [user?.userId, user?.id])
 
   useEffect(() => {
     if (canManageAttendance) {
       fetchEmployees()
       return
     }
-
     fetchAttendance()
   }, [user?.id, user?.userId, role])
 
@@ -110,16 +131,35 @@ const Attendance = ({ role = 'employee' }) => {
 
   const handleSelfPunch = async (state) => {
     try {
+      // Get geolocation
+      const getPosition = () =>
+        new Promise((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject)
+        );
+      let geo = null;
+      try {
+        const pos = await getPosition();
+        geo = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        };
+      } catch (geoErr) {
+        toast.error('Location required to log attendance');
+        return;
+      }
+
       await attendanceAPI.manualSelfPunch({
         biometricDeviceId,
         punchState: state,
-      })
-      toast.success('Attendance logged')
-      fetchAttendance()
+        geolocation: geo,
+      });
+      toast.success('Attendance logged');
+      fetchAttendance();
     } catch (error) {
-      toast.error(error?.response?.data?.msg || 'Failed to log attendance')
+      toast.error(error?.response?.data?.msg || 'Failed to log attendance');
     }
-  }
+  } 
 
   const handleManagerPunch = async (e) => {
     e.preventDefault()
@@ -199,6 +239,39 @@ const Attendance = ({ role = 'employee' }) => {
     return hours.toFixed(2) + ' hrs'
   }
 
+  const normalizedSearch = searchTerm.trim().toLowerCase()
+  const filteredAttendance = attendance.filter((row) => {
+    const dateText = row.attendanceDate ? new Date(row.attendanceDate).toLocaleDateString().toLowerCase() : ''
+    const matchesSearch =
+      !normalizedSearch ||
+      dateText.includes(normalizedSearch) ||
+      (row.status || '').toLowerCase().includes(normalizedSearch) ||
+      (row.shift || '').toLowerCase().includes(normalizedSearch)
+    const matchesStatus = statusFilter === 'all' || (row.status || '').toLowerCase() === statusFilter
+
+    return matchesSearch && matchesStatus
+  })
+
+  const handleExportAttendanceReport = async () => {
+    await downloadPdfReport({
+      fileName: 'attendance-report.pdf',
+      title: 'Attendance Report',
+      rows: filteredAttendance,
+      columns: [
+        { label: 'Date', getValue: (row) => (row.attendanceDate ? new Date(row.attendanceDate).toLocaleDateString() : '') },
+        { label: 'Status', getValue: (row) => row.status || '' },
+        { label: 'Shift', getValue: (row) => row.shift || '' },
+        { label: 'Check In', getValue: (row) => formatTime(row.checkIn) },
+        { label: 'Check Out', getValue: (row) => formatTime(row.checkOut) },
+        { label: 'Hours', getValue: (row) => formatHours(row.totalHoursWorked) },
+      ],
+      metadata: [
+        { label: 'Status Filter', value: statusFilter === 'all' ? 'All' : statusFilter },
+        { label: 'Scope', value: canManageAttendance ? 'Managed Employee' : 'Self' },
+      ],
+    })
+  }
+
   const columns = [
     {
       key: 'attendanceDate',
@@ -228,13 +301,18 @@ const Attendance = ({ role = 'employee' }) => {
             key: 'id',
             label: 'Actions',
             render: (_, row) => (
-              <button className="btn-icon edit" onClick={() => openAdjustmentModal(row)} title="Adjust Attendance">
-                <BsPencil size={16} />
-              </button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="primary" onClick={() => navigate(`/${role}/attendance/${row.id}`)}>View Details</Button>
+                <button className="btn-icon edit" onClick={() => openAdjustmentModal(row)} title="Adjust Attendance">
+                  <BsPencil size={16} />
+                </button>
+              </div>
             ),
           },
         ]
-      : []),
+      : [{ key: 'id', label: 'Actions', render: (_, row) => (
+          <Button size="sm" variant="primary" onClick={() => navigate(`/${role}/attendance/${row.id}`)}>View Details</Button>
+        )}]),
   ]
 
   return (
@@ -287,33 +365,64 @@ const Attendance = ({ role = 'employee' }) => {
         </Card>
       )}
 
-      {isEmployee && (
+      {isEmployee && employeeProfile && (
         <Card>
-          <div className="attendance-actions flex flex-wrap gap-3 items-end">
-            <Input
-              label="Biometric Device ID"
-              value={biometricDeviceId}
-              onChange={(e) => setBiometricDeviceId(e.target.value)}
-              placeholder="BIO-001"
-            />
-            <Button variant="secondary" onClick={() => handleSelfPunch('checkIn')}>
-              Check In
-            </Button>
-            <Button variant="secondary" onClick={() => handleSelfPunch('breakOut')}>
-              Break Out
-            </Button>
-            <Button variant="secondary" onClick={() => handleSelfPunch('breakIn')}>
-              Break In
-            </Button>
-            <Button variant="primary" onClick={() => handleSelfPunch('checkOut')}>
-              Check Out
-            </Button>
+          <div className="mb-2 flex flex-wrap gap-4 items-center">
+            <span className="font-semibold">Status:</span>
+            <span className={`px-3 py-1 rounded-full text-white ${employeeProfile.status === 'active' ? 'bg-green-500' : 'bg-red-500'}`}>{employeeProfile.status}</span>
           </div>
+          {employeeProfile.status === 'active' && (
+            <div className="attendance-actions flex flex-wrap gap-3 items-end">
+              {/* Only show biometric input if user is the employee */}
+              {user?.userId === employeeProfile.userId || user?.id === employeeProfile.userId ? (
+                <Input
+                  label="Biometric Device ID"
+                  value={biometricDeviceId}
+                  onChange={(e) => setBiometricDeviceId(e.target.value)}
+                  placeholder="BIO-001"
+                />
+              ) : null}
+              <Button variant="secondary" onClick={() => handleSelfPunch('checkIn')}>
+                Check In
+              </Button>
+              <Button variant="secondary" onClick={() => handleSelfPunch('breakOut')}>
+                Break Out
+              </Button>
+              <Button variant="secondary" onClick={() => handleSelfPunch('breakIn')}>
+                Break In
+              </Button>
+              <Button variant="primary" onClick={() => handleSelfPunch('checkOut')}>
+                Check Out
+              </Button>
+            </div>
+          )}
+          {employeeProfile.status !== 'active' && (
+            <div className="text-red-600 font-medium mt-2">You are not allowed to log attendance (status: {employeeProfile.status})</div>
+          )}
         </Card>
       )}
 
       <Card>
-        <Table columns={columns} data={attendance} loading={loading} />
+        <div className="flex flex-wrap items-end gap-3 mb-4">
+          <Input
+            label="Search"
+            placeholder="Search by date, status, or shift"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="min-w-[240px]"
+          />
+          <div className="flex flex-col gap-1 min-w-[180px]">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Status</label>
+            <select className="form-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="all">All status</option>
+              <option value="present">Present</option>
+              <option value="absent">Absent</option>
+              <option value="leave">Leave</option>
+            </select>
+          </div>
+          <Button type="button" variant="secondary" onClick={handleExportAttendanceReport}>Export Report</Button>
+        </div>
+        <Table columns={columns} data={filteredAttendance} loading={loading} />
       </Card>
 
       {canManageAttendance && (
