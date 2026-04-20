@@ -1,3 +1,12 @@
+// Users (Admin/HR)
+export const userAPI = {
+  getAll: () => api.get('/api/users'),
+  register: (data) => api.post('/api/auth/register', data),
+  approve: (id, details) => api.post(`/api/users/${id}/approve`, details),
+  update: (id, data) => api.put(`/api/users/${id}`, data),
+  delete: (id) => api.delete(`/api/users/${id}`),
+  assignRole: (id, role) => api.post(`/api/users/${id}/role`, { role }),
+};
 import axios from 'axios'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
@@ -9,6 +18,10 @@ const api = axios.create({
 // Ensure every protected request carries the latest JWT from storage.
 api.interceptors.request.use(
   (config) => {
+    if (typeof config.url === 'string' && config.url.startsWith('/') && !config.url.startsWith('/api')) {
+      config.url = `/api${config.url}`
+    }
+
     const token = localStorage.getItem('authToken')
     if (token) {
       config.headers['x-auth-token'] = token

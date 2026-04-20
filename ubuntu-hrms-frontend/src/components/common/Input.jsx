@@ -31,7 +31,7 @@ const Input = React.forwardRef(
           className={`w-full ${sizeClasses[size] || sizeClasses.md} rounded-lg border ${
             error
               ? 'border-red-500 dark:border-red-600 focus:ring-red-500 dark:focus:ring-red-600'
-              : 'border-slate-300 dark:border-slate-600 focus:ring-blue-500 dark:focus:ring-blue-600'
+              : 'border-slate-300 dark:border-slate-600 focus:ring-primary dark:focus:ring-primary-light'
           } bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 transition-colors duration-200 ${className}`}
           {...props}
         />

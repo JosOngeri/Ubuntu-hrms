@@ -90,7 +90,7 @@ const AdminDashboard = () => {
         <Card>
           <div className="recent-activity">
             <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 flex items-center gap-2">
-              <span className="w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></span>
+              <span className="w-1 h-6 bg-primary dark:bg-primary-light rounded-full"></span>
               Recent Activity
             </h3>
             <p className="text-slate-600 dark:text-slate-400 mt-2">

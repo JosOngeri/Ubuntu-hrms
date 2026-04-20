@@ -9,13 +9,16 @@ export default {
     extend: {
       colors: {
         // Light mode colors
-        'primary': '#2563eb',
-        'primary-dark': '#1e40af',
+        'primary': 'rgba(67, 112, 55, 1)',
+        'primary-dark': 'rgba(50, 84, 41, 1)',
+        'primary-light': 'rgba(96, 145, 83, 1)',
         'secondary': '#64748b',
         'success': '#10b981',
-        'warning': '#f59e0b',
+        'warning': 'rgba(211, 127, 55, 1)',
+        'warning-dark': 'rgba(180, 105, 39, 1)',
+        'warning-light': 'rgba(226, 156, 98, 1)',
         'danger': '#ef4444',
-        'info': '#0ea5e9',
+        'info': 'rgba(67, 112, 55, 1)',
         
         // Backgrounds
         'bg-light': '#ffffff',

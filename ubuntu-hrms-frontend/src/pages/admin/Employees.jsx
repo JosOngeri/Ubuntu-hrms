@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { BsPlus, BsTrash, BsPencil, BsSearch } from 'react-icons/bs'
 import DashboardLayout from '../../components/DashboardLayout'
 import Card from '../../components/common/Card'
@@ -9,13 +10,17 @@ import Modal from '../../components/common/Modal'
 import { employeeAPI } from '../../services/api'
 import { useAuth } from '../../contexts/AuthContext'
 import { toast } from 'react-toastify'
+import { downloadPdfReport } from '../../utils/reportExport'
 // import './Employees.css'
 
 const Employees = () => {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [departmentFilter, setDepartmentFilter] = useState('all')
+  const [employmentTypeFilter, setEmploymentTypeFilter] = useState('all')
   const [showModal, setShowModal] = useState(false)
   const [editingEmployee, setEditingEmployee] = useState(null)
   const [formData, setFormData] = useState({
@@ -128,11 +133,44 @@ const Employees = () => {
     }
   }
 
-  const filteredEmployees = employees.filter(emp =>
-    (emp.firstName || '').toLowerCase().includes(search.toLowerCase()) ||
-    (emp.lastName || '').toLowerCase().includes(search.toLowerCase()) ||
-    (emp.email || '').toLowerCase().includes(search.toLowerCase())
-  )
+  const normalizedSearch = search.trim().toLowerCase()
+  const departmentOptions = [...new Set(employees.map((emp) => emp.department).filter(Boolean))]
+  const employmentTypeOptions = [...new Set(employees.map((emp) => emp.employmentType).filter(Boolean))]
+
+  const filteredEmployees = employees.filter((emp) => {
+    const matchesSearch =
+      !normalizedSearch ||
+      (emp.firstName || '').toLowerCase().includes(normalizedSearch) ||
+      (emp.lastName || '').toLowerCase().includes(normalizedSearch) ||
+      (emp.email || '').toLowerCase().includes(normalizedSearch)
+
+    const matchesDepartment = departmentFilter === 'all' || (emp.department || '') === departmentFilter
+    const matchesEmploymentType = employmentTypeFilter === 'all' || (emp.employmentType || '') === employmentTypeFilter
+
+    return matchesSearch && matchesDepartment && matchesEmploymentType
+  })
+
+  const handleExportEmployeesReport = async () => {
+    await downloadPdfReport({
+      fileName: 'employees-report.pdf',
+      title: 'Employees Report',
+      rows: filteredEmployees,
+      columns: [
+        { label: 'First Name', getValue: (row) => row.firstName || '' },
+        { label: 'Last Name', getValue: (row) => row.lastName || '' },
+        { label: 'Email', getValue: (row) => row.email || '' },
+        { label: 'Phone', getValue: (row) => row.phone || '' },
+        { label: 'Department', getValue: (row) => row.department || '' },
+        { label: 'Employment Type', getValue: (row) => row.employmentType || '' },
+        { label: 'Wage Rate', getValue: (row) => row.wageRate ?? '' },
+        { label: 'Status', getValue: (row) => row.status || '' },
+      ],
+      metadata: [
+        { label: 'Department Filter', value: departmentFilter === 'all' ? 'All' : departmentFilter },
+        { label: 'Type Filter', value: employmentTypeFilter === 'all' ? 'All' : employmentTypeFilter },
+      ],
+    })
+  }
 
   const columns = [
     { key: 'firstName', label: 'First Name' },
@@ -147,15 +185,14 @@ const Employees = () => {
       render: (_, row) => {
         const rowId = row._id || row.id
 
-        if (!canManageEmployees) {
-          return '-'
-        }
-
         return (
-          <div className="action-buttons">
-            <button className="btn-icon edit" onClick={() => openEditModal(row)} title="Edit">
-              <BsPencil size={16} />
-            </button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="primary" onClick={() => navigate(`/admin/employees/${rowId}`)}>View Details</Button>
+            {canManageEmployees && (
+              <button className="btn-icon edit" onClick={() => openEditModal(row)} title="Edit">
+                <BsPencil size={16} />
+              </button>
+            )}
             {canDeleteEmployees && (
               <button className="btn-icon delete" onClick={() => handleDelete(rowId)} title="Delete">
                 <BsTrash size={16} />
@@ -175,7 +212,7 @@ const Employees = () => {
       </div>
 
       <Card>
-        <div className="employees-header">
+        <div className="employees-header flex flex-wrap items-end gap-3 mb-4">
           <div className="search-box">
             <BsSearch size={18} />
             <Input
@@ -186,6 +223,25 @@ const Employees = () => {
               className="search-input"
             />
           </div>
+          <div className="flex flex-col gap-1 min-w-[180px]">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Department</label>
+            <select className="form-select" value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}>
+              <option value="all">All departments</option>
+              {departmentOptions.map((dep) => (
+                <option key={dep} value={dep}>{dep}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1 min-w-[180px]">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Employment Type</label>
+            <select className="form-select" value={employmentTypeFilter} onChange={(e) => setEmploymentTypeFilter(e.target.value)}>
+              <option value="all">All types</option>
+              {employmentTypeOptions.map((empType) => (
+                <option key={empType} value={empType}>{empType}</option>
+              ))}
+            </select>
+          </div>
+          <Button variant="secondary" onClick={handleExportEmployeesReport}>Export Report</Button>
           {canManageEmployees && (
             <Button variant="primary" onClick={openAddModal}>
               <BsPlus size={20} />

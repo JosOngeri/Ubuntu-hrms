@@ -1,37 +1,59 @@
-import React from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { ToastContainer } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { AuthProvider } from './contexts/AuthContext';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-// Providers
-import { AuthProvider } from './contexts/AuthContext'
-import { ThemeProvider } from './contexts/ThemeContext'
-
-// Components
-import ProtectedRoute from './components/ProtectedRoute'
+// Recruitment Pages
+import JobPostingManagement from './pages/recruitment/JobPostingManagement';
+import PublicJobBoard from './pages/recruitment/PublicJobBoard';
+import JobApplicationForm from './pages/recruitment/JobApplicationForm';
+import ApplicantReviewDashboard from './pages/recruitment/ApplicantReviewDashboard';
+import ProfileView from './pages/recruitment/ProfileView';
+import ProfileUpdateForm from './pages/recruitment/ProfileUpdateForm';
+import JobDetail from './pages/recruitment/JobDetail';
+import ApplicantDetail from './pages/recruitment/ApplicantDetail';
 
 // Auth Pages
-import Login from './pages/auth/Login'
-import Register from './pages/auth/Register'
-import ForgotPassword from './pages/auth/ForgotPassword'
-import ResetPassword from './pages/auth/ResetPassword'
-import Unauthorized from './pages/Unauthorized'
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
+import Unauthorized from './pages/Unauthorized';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Admin Pages
-import AdminDashboard from './pages/admin/Dashboard'
-import AdminEmployees from './pages/admin/Employees'
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminEmployees from './pages/admin/Employees';
+import AdminUsers from './pages/admin/Users';
+import Permissions from './pages/admin/Permissions';
+import UserDetail from './pages/admin/UserDetail';
+import EmployeeDetail from './pages/admin/EmployeeDetail';
 
-// Manager Pages
-import ManagerDashboard from './pages/manager/Dashboard'
+// Manager & Employee Pages
+import ManagerDashboard from './pages/manager/Dashboard';
+import EmployeeDashboard from './pages/employee/Dashboard';
+import AttendancePage from './pages/shared/Attendance';
+import AttendanceDetail from './pages/shared/AttendanceDetail';
 
-// Employee Pages
-import EmployeeDashboard from './pages/employee/Dashboard'
+// Wrappers for dynamic routes
+function JobApplicationFormWrapper() {
+  const { jobId } = useParams();
+  return <JobApplicationForm jobId={jobId} />;
+}
 
-// Shared Pages
-import AttendancePage from './pages/shared/Attendance'
+function ApplicantReviewDashboardWrapper() {
+  const { jobId } = useParams();
+  return <ApplicantReviewDashboard jobId={jobId} />;
+}
 
+function ApplicantDetailWrapper() {
+  const { jobId, applicantId } = useParams();
+  return <ApplicantDetail jobId={jobId} applicantId={applicantId} />;
+}
 
-const App = () => {
+function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
@@ -43,7 +65,6 @@ const App = () => {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
-            <Route path="/" element={<Navigate to="/login" replace />} />
 
             {/* Admin Routes */}
             <Route
@@ -63,6 +84,38 @@ const App = () => {
               }
             />
             <Route
+              path="/admin/employees/:employeeId"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <EmployeeDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminUsers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users/:userId"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <UserDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/permissions"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <Permissions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/admin/attendance"
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
@@ -71,18 +124,10 @@ const App = () => {
               }
             />
             <Route
-              path="/admin/leaves"
+              path="/admin/attendance/:attendanceId"
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/payroll"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminDashboard />
+                  <AttendanceDetail />
                 </ProtectedRoute>
               }
             />
@@ -105,42 +150,10 @@ const App = () => {
               }
             />
             <Route
-              path="/manager/leaves"
+              path="/manager/attendance/:attendanceId"
               element={
                 <ProtectedRoute allowedRoles={['manager', 'supervisor']}>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/manager/payroll"
-              element={
-                <ProtectedRoute allowedRoles={['manager', 'supervisor']}>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/manager/team"
-              element={
-                <ProtectedRoute allowedRoles={['manager', 'supervisor']}>
-                  <AdminEmployees />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/manager/kpis"
-              element={
-                <ProtectedRoute allowedRoles={['manager', 'supervisor']}>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/manager/reports"
-              element={
-                <ProtectedRoute allowedRoles={['manager', 'supervisor']}>
-                  <AdminDashboard />
+                  <AttendanceDetail />
                 </ProtectedRoute>
               }
             />
@@ -163,34 +176,62 @@ const App = () => {
               }
             />
             <Route
-              path="/employee/leaves"
+              path="/employee/attendance/:attendanceId"
               element={
                 <ProtectedRoute allowedRoles={['employee']}>
-                  <AdminDashboard />
+                  <AttendanceDetail />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Recruitment Portal Routes */}
+            <Route
+              path="/recruitment/jobs"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'manager', 'hr']}>
+                  <JobPostingManagement />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/employee/punch"
+              path="/recruitment/jobs/:jobId"
               element={
-                <ProtectedRoute allowedRoles={['employee']}>
-                  <EmployeeDashboard />
+                <ProtectedRoute allowedRoles={['admin', 'manager', 'hr']}>
+                  <JobDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/recruitment/jobs-board" element={<PublicJobBoard />} />
+            <Route path="/recruitment/apply/:jobId" element={<JobApplicationFormWrapper />} />
+            <Route
+              path="/recruitment/jobs/:jobId/applicants"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'manager', 'hr']}>
+                  <ApplicantReviewDashboardWrapper />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/employee/contracts"
+              path="/recruitment/jobs/:jobId/applicants/:applicantId"
               element={
-                <ProtectedRoute allowedRoles={['employee']}>
-                  <AdminDashboard />
+                <ProtectedRoute allowedRoles={['admin', 'manager', 'hr']}>
+                  <ApplicantDetailWrapper />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/employee/profile"
+              path="/profile/view"
               element={
-                <ProtectedRoute allowedRoles={['employee']}>
-                  <AdminDashboard />
+                <ProtectedRoute allowedRoles={['admin', 'manager', 'hr', 'employee']}>
+                  <ProfileView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile/update"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'manager', 'hr', 'employee']}>
+                  <ProfileUpdateForm />
                 </ProtectedRoute>
               }
             />
@@ -215,7 +256,7 @@ const App = () => {
         </Router>
       </AuthProvider>
     </ThemeProvider>
-  )
+  );
 }
 
-export default App
+export default App;

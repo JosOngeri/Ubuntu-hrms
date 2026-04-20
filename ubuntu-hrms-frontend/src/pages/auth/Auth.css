@@ -3,12 +3,12 @@
    =============================================== */
 
 :root {
-  --primary-color: #2563eb;
-  --primary-dark: #1d4ed8;
-  --primary-light: #3b82f6;
+  --primary-color: rgba(67, 112, 55, 1);
+  --primary-dark: rgba(50, 84, 41, 1);
+  --primary-light: rgba(96, 145, 83, 1);
   --danger-color: #dc2626;
   --success-color: #16a34a;
-  --warning-color: #ea580c;
+  --warning-color: rgba(211, 127, 55, 1);
   --bg-light: #ffffff;
   --bg-dark: #0f172a;
   --text-light: #1e293b;
@@ -36,7 +36,7 @@ body.dark-mode {
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--warning-color) 100%);
   position: relative;
   overflow: hidden;
 }
@@ -126,7 +126,7 @@ body.dark-mode .auth-card {
   justify-content: center;
   width: 80px;
   height: 80px;
-  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--warning-color) 100%);
   border-radius: 16px;
   margin: 0 auto 20px;
   box-shadow: var(--shadow-lg);
@@ -134,8 +134,8 @@ body.dark-mode .auth-card {
 }
 
 @keyframes iconPulse {
-  0%, 100% { box-shadow: var(--shadow-lg), 0 0 0 0 rgba(37, 99, 235, 0.4); }
-  50% { box-shadow: var(--shadow-lg), 0 0 0 10px rgba(37, 99, 235, 0); }
+  0%, 100% { box-shadow: var(--shadow-lg), 0 0 0 0 rgba(67, 112, 55, 0.4); }
+  50% { box-shadow: var(--shadow-lg), 0 0 0 10px rgba(67, 112, 55, 0); }
 }
 
 .auth-icon svg {
@@ -148,14 +148,14 @@ body.dark-mode .auth-card {
   font-size: 32px;
   font-weight: 800;
   margin: 0 0 8px;
-  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--warning-color) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 body.dark-mode .auth-header h1 {
-  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+  background: linear-gradient(135deg, var(--primary-light) 0%, rgba(226, 156, 98, 1) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -220,11 +220,11 @@ body.dark-mode .form-group input {
 .form-group input:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(67, 112, 55, 0.15);
 }
 
 body.dark-mode .form-group input:focus {
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+  box-shadow: 0 0 0 3px rgba(96, 145, 83, 0.25);
 }
 
 .form-group input:disabled {
@@ -249,7 +249,7 @@ body.dark-mode .form-group input:disabled {
 
 .auth-button {
   padding: 12px 24px;
-  background: linear-gradient(135deg, var(--primary-color) 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--warning-color) 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -374,11 +374,11 @@ body.dark-mode .auth-divider-text {
 }
 
 body.dark-mode .auth-link {
-  color: #60a5fa;
+  color: var(--primary-light);
 }
 
 body.dark-mode .auth-link:hover {
-  color: #3b82f6;
+  color: rgba(226, 156, 98, 1);
 }
 
 /* ===============================================
@@ -416,7 +416,7 @@ body.dark-mode .auth-footer p {
   border: 1px solid var(--border-light);
   border-radius: 4px;
   font-family: 'Monaco', 'Courier New', monospace;
-  color: #7c3aed;
+  color: var(--warning-color);
   margin: 4px 0;
   word-break: break-all;
 }
@@ -424,7 +424,7 @@ body.dark-mode .auth-footer p {
 body.dark-mode .auth-footer code {
   background: #0f172a;
   border-color: var(--border-dark);
-  color: #a78bfa;
+  color: rgba(226, 156, 98, 1);
 }
 
 /* ===============================================

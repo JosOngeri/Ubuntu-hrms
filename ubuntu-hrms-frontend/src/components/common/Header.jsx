@@ -29,7 +29,13 @@ const Header = ({ onToggleSidebar }) => {
               </svg>
             </button>
           )}
-          <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">UBUNTU HRMS</h1>
+          <div className="flex items-center gap-3">
+            <img src="/ubuntu_log_transparent.png" alt="Ubuntu Kreative Village" className="h-11 w-11 object-contain" />
+            <div className="leading-tight">
+              <h1 className="text-xl font-bold text-primary dark:text-primary-light">UBUNTU HRMS</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Kreative Village</p>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center gap-4">

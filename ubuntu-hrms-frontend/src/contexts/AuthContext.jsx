@@ -28,6 +28,7 @@ export const AuthProvider = ({ children }) => {
     const savedToken = localStorage.getItem('authToken')
     if (savedToken) {
       const decoded = decodeToken(savedToken)
+      console.log('[AuthContext] Decoded token on load:', decoded)
       if (decoded) {
         setToken(savedToken)
         setUser(decoded)
@@ -46,7 +47,16 @@ export const AuthProvider = ({ children }) => {
         username,
         password,
       })
-      const { token } = response.data
+      const { token, mustChangePassword, resetToken, msg } = response.data
+
+      if (mustChangePassword) {
+        return {
+          mustChangePassword: true,
+          resetToken,
+          msg,
+        }
+      }
+
       setToken(token)
       axios.defaults.headers.common['x-auth-token'] = token
       localStorage.setItem('authToken', token)
@@ -57,8 +67,12 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Invalid auth token received')
       }
       setUser(decoded)
+      console.log('[AuthContext] Decoded token after login:', decoded)
       
-      return decoded
+      return {
+        mustChangePassword: false,
+        user: decoded,
+      }
     } catch (error) {
       throw error.response?.data?.msg || 'Login failed'
     }

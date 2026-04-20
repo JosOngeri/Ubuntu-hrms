@@ -3,7 +3,9 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+
   const { user, loading, token } = useAuth()
+  console.log('[ProtectedRoute] user:', user, 'token:', token, 'allowedRoles:', allowedRoles)
 
   if (loading) {
     return <div className="loading-screen">Loading...</div>
