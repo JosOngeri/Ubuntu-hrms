@@ -35,7 +35,7 @@ const EmployeeDashboard = () => {
       <div className="grid-2">
         <Card>
           <div className="quick-action">
-            <div className="quick-action-icon text-2xl text-blue-600 dark:text-blue-400">
+            <div className="quick-action-icon text-2xl text-primary dark:text-primary-light">
               <BsPersonCheck size={32} />
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 mt-3">Quick Punch</h3>
@@ -90,24 +90,24 @@ const EmployeeDashboard = () => {
         <Card>
           <div className="info-box">
             <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 flex items-center gap-2 mb-4">
-              <span className="w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></span>
+              <span className="w-1 h-6 bg-primary dark:bg-primary-light rounded-full"></span>
               Quick Tips
             </h3>
             <ul className="space-y-2 text-slate-600 dark:text-slate-400">
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 dark:text-blue-400 font-bold mt-1">•</span>
+                <span className="text-primary dark:text-primary-light font-bold mt-1">•</span>
                 <span>Use the Quick Punch button above to record your attendance</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 dark:text-blue-400 font-bold mt-1">•</span>
+                <span className="text-primary dark:text-primary-light font-bold mt-1">•</span>
                 <span>Check My Attendance to view your attendance history</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 dark:text-blue-400 font-bold mt-1">•</span>
+                <span className="text-primary dark:text-primary-light font-bold mt-1">•</span>
                 <span>Submit leave requests under My Leaves</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 dark:text-blue-400 font-bold mt-1">•</span>
+                <span className="text-primary dark:text-primary-light font-bold mt-1">•</span>
                 <span>Update your profile information anytime</span>
               </li>
             </ul>

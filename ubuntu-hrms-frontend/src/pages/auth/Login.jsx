@@ -23,7 +23,17 @@ const Login = () => {
 
     setLoading(true)
     try {
-      const user = await login(username, password)
+      const result = await login(username, password)
+
+      if (result.mustChangePassword) {
+        toast.info(result.msg || 'Please change your password to continue')
+        setTimeout(() => {
+          navigate(`/reset-password?token=${result.resetToken}`)
+        }, 500)
+        return
+      }
+
+      const user = result.user
       toast.success('Login successful')
       
       // Redirect based on role
