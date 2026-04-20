@@ -2,6 +2,21 @@ const User = require('../models/User.model');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { sendEmail } = require('../utils/email');
+
+const buildResetLink = (resetToken) => `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
+
+const signAuthToken = (user) => new Promise((resolve, reject) => {
+  const payload = { id: user.id, role: user.role, status: user.status };
+
+  jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
+    if (err) {
+      reject(err);
+      return;
+    }
+    resolve(token);
+  });
+});
 
 // Register user
 const register = async (req, res) => {
@@ -15,11 +30,8 @@ const register = async (req, res) => {
     user.password = await bcrypt.hash(password, salt);
     await user.save();
 
-    const payload = { id: user.id, role: user.role };  
-    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
-      if (err) throw err;
-      res.json({ token });
-    });
+    const token = await signAuthToken(user);
+    res.json({ token });
   } catch (err) {
     if (err?.code === '23505') {
       return res.status(400).json({ msg: 'User already exists' });
@@ -39,11 +51,23 @@ const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: 'Invalid credentials' });
 
-    const payload = { id: user.id, role: user.role };  
-    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
-      if (err) throw err;
-      res.json({ token });
-    });
+    if (user.mustChangePassword) {
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+      user.resetToken = resetTokenHash;
+      user.resetTokenExpire = new Date(Date.now() + 30 * 60 * 1000);
+      await user.save();
+
+      return res.status(200).json({
+        mustChangePassword: true,
+        resetToken,
+        msg: 'Password change required before first login',
+      });
+    }
+
+    const token = await signAuthToken(user);
+    res.json({ token, mustChangePassword: false });
   } catch (err) {
     res.status(500).send('Server error');
   }
@@ -71,21 +95,16 @@ const forgotPassword = async (req, res) => {
     user.resetTokenExpire = new Date(Date.now() + 3600000); // 1 hour
     await user.save();
 
-    // In a real application, you would send an email here
-    // For now, return the reset link (in production, this would be in an email)
-    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
-    
-    // IMPORTANT: In production, send this via email, not in response
-    // This is for development/testing only
-    if (process.env.NODE_ENV === 'development') {
-      res.json({ 
-        msg: 'Password reset link generated',
-        resetLink: resetLink, // Only in development
-        note: 'In production, this would be sent via email'
-      });
-    } else {
-      res.json({ msg: 'If an account with that email exists, a password reset link will be sent' });
-    }
+    const resetLink = buildResetLink(resetToken);
+
+    await sendEmail({
+      to: user.email,
+      subject: 'Ubuntu HRMS Password Reset',
+      text: `Hello ${user.username},\n\nUse this link to reset your password: ${resetLink}\n\nThis link expires in 1 hour.`,
+      html: `<p>Hello ${user.username},</p><p>Use this link to reset your password:</p><p><a href="${resetLink}">${resetLink}</a></p><p>This link expires in 1 hour.</p>`,
+    });
+
+    res.json({ msg: 'If an account with that email exists, a password reset link will be sent' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -119,6 +138,7 @@ const resetPassword = async (req, res) => {
     // Clear reset token
     user.resetToken = null;
     user.resetTokenExpire = null;
+    user.mustChangePassword = false;
     user.updatedAt = new Date();
     
     await user.save();
