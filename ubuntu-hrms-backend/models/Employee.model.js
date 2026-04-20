@@ -8,6 +8,8 @@ const mapRow = (row) => {
 
   return new Employee({
     id: row.id,
+    userId: row.user_id,
+    status: row.status,
     firstName: row.first_name,
     lastName: row.last_name,
     email: row.email,
@@ -26,6 +28,8 @@ const mapRow = (row) => {
 class Employee {
   constructor(data = {}) {
     this.id = normalizeId(data.id) ?? data.id ?? null;
+    this.userId = data.userId ?? null;
+    this.status = data.status ?? 'active';
     this.firstName = data.firstName ?? null;
     this.lastName = data.lastName ?? null;
     this.email = data.email ?? null;
@@ -152,13 +156,15 @@ class Employee {
     const { rows } = await query(
       `
         INSERT INTO employees (
-          first_name, last_name, email, phone, biometric_device_id, mpesa_phone_number,
+          user_id, status, first_name, last_name, email, phone, biometric_device_id, mpesa_phone_number,
           employment_type, wage_rate, department, date_joined, created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
         RETURNING *
       `,
       [
+        this.userId,
+        this.status,
         this.firstName,
         this.lastName,
         normalizedEmail,
@@ -185,6 +191,8 @@ class Employee {
     return {
       _id: String(this.id),
       id: String(this.id),
+      userId: this.userId,
+      status: this.status,
       firstName: this.firstName,
       lastName: this.lastName,
       fullName: this.fullName,

@@ -8,12 +8,12 @@ const upload = require('../middleware/cvUpload');
 // 3.4.1 Job Posting CRUD (protected)
 router.post('/', auth, role(['admin', 'manager', 'hr']), jobController.createJob);
 router.get('/', auth, jobController.getJobs);
+// 3.4.4 Available Jobs Listing (public)
+router.get('/public/list', jobController.listOpenJobs);
+
 router.get('/:id', auth, jobController.getJob);
 router.put('/:id', auth, role(['admin', 'manager', 'hr']), jobController.updateJob);
 router.delete('/:id', auth, role(['admin', 'manager', 'hr']), jobController.deleteJob);
-
-// 3.4.4 Available Jobs Listing (public)
-router.get('/public/list', jobController.listOpenJobs);
 
 // 3.4.5 Application Submission (public, with CV upload)
 router.post('/:id/apply', upload.single('cv'), jobController.applyToJob);
