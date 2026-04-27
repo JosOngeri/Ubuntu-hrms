@@ -4,11 +4,24 @@ const path = require('path');
 
 const app = express();
 
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'https://ubuntu-hrms-epmc.onrender.com';
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://ubuntu-hrms12.vercel.app',
+  process.env.FRONTEND_ORIGIN,
+  'https://ubuntu-hrms-epmc.onrender.com',
+].filter(Boolean);
 
 app.use(
   cors({
-    origin: FRONTEND_ORIGIN,
+    origin: function (origin, callback) {
+      // allow requests with no origin (like mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS: ' + origin));
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'x-auth-token'],
     credentials: true,
