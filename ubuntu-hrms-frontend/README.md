@@ -98,7 +98,7 @@ src/
 ### Prerequisites
 - Node.js 16+ 
 - npm or pnpm
-- Backend API running (http://localhost:5000 by default)
+- Backend API running (https://ubuntu-hrms-epmc.onrender.com by default)
 
 ### Installation Steps
 
@@ -122,7 +122,7 @@ src/
    
    Edit `.env.local` with your API URL:
    ```
-   REACT_APP_API_URL=http://localhost:5000
+   REACT_APP_API_URL=https://ubuntu-hrms-epmc.onrender.com
    ```
 
 4. **Start development server**
@@ -248,7 +248,7 @@ pnpm install
 ```
 
 ### API connection issues
-- Verify backend is running on `http://localhost:5000`
+- Verify backend is running on `https://ubuntu-hrms-epmc.onrender.com`
 - Check `.env.local` has correct `REACT_APP_API_URL`
 - Check browser console for CORS errors
 
