@@ -29,6 +29,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import AdminEmployees from './pages/admin/Employees';
 import AdminUsers from './pages/admin/Users';
 import Permissions from './pages/admin/Permissions';
+import AdminSettings from './pages/admin/Settings';
 import UserDetail from './pages/admin/UserDetail';
 import EmployeeDetail from './pages/admin/EmployeeDetail';
 
@@ -153,6 +154,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <Permissions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminSettings />
                 </ProtectedRoute>
               }
             />

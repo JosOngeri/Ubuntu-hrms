@@ -4,6 +4,7 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Table from '../../components/common/Table';
+import Modal from '../../components/common/Modal';
 import api, { employeeAPI } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +18,7 @@ export default function Payroll() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [form, setForm] = useState({ employeeId: '', period: new Date().toISOString().slice(0, 7) });
+  const [viewPayslip, setViewPayslip] = useState(null);
 
   const loadData = async () => {
     try {
@@ -72,11 +74,14 @@ export default function Payroll() {
       <span className={`px-2 py-1 rounded-full text-xs font-semibold ${status === 'Draft' ? 'bg-slate-200 text-slate-800' : status === 'Approved' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>{status}</span>
     )},
     { key: 'actions', label: 'Actions', render: (_, row) => (
-      row.status === 'Draft' ? (
-        <Button size="sm" variant="success" onClick={() => handleApprove(row.id)}>Approve</Button>
-      ) : (
-        <span className="text-sm text-slate-500 px-2">Locked</span>
-      )
+      <div className="flex gap-2 items-center">
+        <Button size="sm" variant="secondary" onClick={() => setViewPayslip(row)}>View</Button>
+        {row.status === 'Draft' ? (
+          <Button size="sm" variant="success" onClick={() => handleApprove(row.id)}>Approve</Button>
+        ) : (
+          <span className="text-sm text-slate-500 px-2">Locked</span>
+        )}
+      </div>
     )}
   ];
 
@@ -119,6 +124,41 @@ export default function Payroll() {
           <Table columns={columns} data={payslips} loading={loading} />
         </Card>
       </div>
+
+      <Modal isOpen={!!viewPayslip} onClose={() => setViewPayslip(null)} title="Payslip Breakdown">
+        {viewPayslip && (
+          <div className="space-y-4 text-sm text-slate-700 dark:text-slate-300">
+            <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">Employee:</span>
+              <span>{viewPayslip.first_name} {viewPayslip.last_name}</span>
+            </div>
+            <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">Period:</span>
+              <span>{viewPayslip.period}</span>
+            </div>
+            <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">Gross Pay:</span>
+              <span>{formatMoney(viewPayslip.gross_pay)}</span>
+            </div>
+            <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">Overtime Pay:</span>
+              <span>{formatMoney(viewPayslip.overtime_pay)}</span>
+            </div>
+            <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">KPI Bonus:</span>
+              <span>{formatMoney(viewPayslip.kpi_bonus)}</span>
+            </div>
+            <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2 text-rose-600 dark:text-rose-400">
+              <span className="font-semibold">Deductions (Unpaid Leave):</span>
+              <span>- {formatMoney(viewPayslip.deductions)}</span>
+            </div>
+            <div className="flex justify-between pt-2 text-lg font-bold text-emerald-700 dark:text-emerald-500">
+              <span>Net Payout:</span>
+              <span>{formatMoney(viewPayslip.net_pay)}</span>
+            </div>
+          </div>
+        )}
+      </Modal>
     </DashboardLayout>
   );
 }

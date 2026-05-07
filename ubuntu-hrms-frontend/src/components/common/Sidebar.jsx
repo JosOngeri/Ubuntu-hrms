@@ -62,6 +62,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
           { path: '/admin/users', label: 'Users', icon: BsPersonCircle },
           { path: '/admin/employees', label: 'Employees', icon: BsPeople },
           { path: '/admin/permissions', label: 'Permissions', icon: BsGear },
+          { path: '/admin/settings', label: 'Settings', icon: BsGear },
         ]
       },
       {
@@ -75,7 +76,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
       {
         title: 'Finance',
         items: [
-          { path: '/admin/payroll', label: 'Payroll', icon: BsCreditCard },
+          // { path: '/admin/payroll', label: 'Payroll', icon: BsCreditCard },
           { path: '/payroll/disburse', label: 'Disburse Payroll', icon: BsCreditCard },
         ]
       },
@@ -124,13 +125,13 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
           { path: '/kpi/manage', label: 'Manage KPIs', icon: BsGraphUp },
         ]
       },
-      {
-        title: 'Finance',
-        items: [
-          { path: '/payroll/disburse', label: 'Disburse Payroll', icon: BsCreditCard },
-          { path: '/contracts/review', label: 'Review Submissions', icon: BsCheckCircle },
-        ]
-      },
+      // {
+      //   title: 'Finance',
+      //   items: [
+      //     { path: '/payroll/disburse', label: 'Disburse Payroll', icon: BsCreditCard },
+      //     { path: '/contracts/review', label: 'Review Submissions', icon: BsCheckCircle },
+      //   ]
+      // },
       {
         title: 'Hiring',
         items: recruitmentItems,

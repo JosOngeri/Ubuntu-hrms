@@ -200,7 +200,7 @@ export default function ContractorPortal() {
           <section className="mt-6 rounded-2xl border border-slate-200 bg-slate-950 p-6 text-white shadow-sm dark:bg-white dark:text-slate-950">
             <h3 className="text-lg font-semibold">Invoices</h3>
             <p className="mt-2 text-sm text-slate-300 dark:text-slate-700">
-              {invoices.length} invoice record(s) loaded from the backend for reference.
+              {invoices.length} invoice record(s) loaded for reference.
             </p>
           </section>
         </>

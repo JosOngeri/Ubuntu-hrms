@@ -82,6 +82,33 @@ const initDatabase = async () => {
   await query(`ALTER TABLE employees ALTER COLUMN payment_method SET NOT NULL`);
   await query(`ALTER TABLE employees DROP CONSTRAINT IF EXISTS employees_payment_method_check`);
   await query(`ALTER TABLE employees ADD CONSTRAINT employees_payment_method_check CHECK (payment_method IN ('MPESA', 'BANK'))`);
+  
+  // Attendance permission for permanent workers
+  await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS can_self_record_attendance BOOLEAN NOT NULL DEFAULT true`);
+
+  // Settings table for work area location and configuration
+  await query(`
+    CREATE TABLE IF NOT EXISTS settings (
+      id BIGSERIAL PRIMARY KEY,
+      setting_key TEXT NOT NULL UNIQUE,
+      setting_value TEXT NOT NULL,
+      description TEXT,
+      updated_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // Insert default settings if they don't exist
+  await query(`
+    INSERT INTO settings (setting_key, setting_value, description)
+    VALUES 
+      ('OFFICE_LATITUDE', '-1.19293', 'Office location latitude'),
+      ('OFFICE_LONGITUDE', '36.93057', 'Office location longitude'),
+      ('OFFICE_RADIUS_METERS', '1000', 'Allowed work location radius in meters'),
+      ('OFFICE_NAME', 'Main Office', 'Name of the office location')
+    ON CONFLICT (setting_key) DO NOTHING
+  `);
 
   // Recruitment: Jobs table
   await query(`

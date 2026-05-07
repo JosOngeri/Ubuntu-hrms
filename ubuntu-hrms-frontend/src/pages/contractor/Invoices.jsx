@@ -24,7 +24,7 @@ const ContractorInvoices = () => {
     fetchInvoices()
   }, [])
 
-  const pendingAmount = invoices.filter(inv => inv.status === 'Pending').reduce((sum, inv) => sum + inv.amount, 0)
+  const pendingAmount = invoices.filter(inv => inv.status === 'Pending').reduce((sum, inv) => sum + Number(inv.amount || 0), 0)
   const approvedCount = invoices.filter(inv => inv.status === 'Approved').length
   const draftCount = invoices.filter(inv => inv.status === 'Draft').length
 
@@ -49,7 +49,7 @@ const ContractorInvoices = () => {
         <Card>
           <div className="invoice-summary">
             <h3 className="text-lg font-bold">Pending Amount</h3>
-            <p className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-100">${pendingAmount}</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-100">KES {pendingAmount.toLocaleString()}</p>
           </div>
         </Card>
 
@@ -82,7 +82,7 @@ const ContractorInvoices = () => {
             {invoices.map((invoice) => (
               <tr key={invoice.id}>
                 <td className="px-4 py-3 text-sm text-slate-900 dark:text-slate-100">{invoice.id}</td>
-                <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">${invoice.amount}</td>
+                <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">KES {Number(invoice.amount).toLocaleString()}</td>
                 <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{invoice.status}</td>
                 <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{invoice.due}</td>
               </tr>

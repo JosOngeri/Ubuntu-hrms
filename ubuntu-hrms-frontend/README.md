@@ -132,7 +132,7 @@ src/
    npm run dev
    ```
 
-   The application will open at `https://ubuntu-hrms12.vercel.app/`
+   The application will open at `https://ubuntu-hrms12.vercel.app`
 
 ### Build for Production
 ```bash
