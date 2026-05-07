@@ -6,7 +6,7 @@ const app = express();
 
 
 const allowedOrigins = [
-  'https://ubuntu-hrms12.vercel.app/',
+  'https://ubuntu-hrms12.vercel.app',
   'https://ubuntu-hrms12.vercel.app',
   process.env.FRONTEND_ORIGIN,
   'https://ubuntu-hrms-epmc.onrender.com',
@@ -49,6 +49,9 @@ app.use(['/api/kpi', '/api/kpis'], require('./routes/kpi.routes'));
 app.use(['/api/leave', '/api/leaves'], require('./routes/leave.routes'));
 app.use('/api/contracts', require('./routes/contract.routes'));
 app.use('/api/contractors', require('./routes/contractor.routes'));
+
+// Settings and configuration
+app.use('/api/settings', require('./routes/settings.routes'));
 
 app.use((req, res) => {
   res.status(404).json({ msg: 'Route not found' });

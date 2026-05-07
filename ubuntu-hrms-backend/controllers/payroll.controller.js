@@ -129,6 +129,38 @@ const getApprovedPayslips = async () => {
   return rows;
 };
 
+const getPayslipById = async (id) => {
+  const { rows } = await query(
+    `SELECT p.id,
+            p.employee_id,
+            p.period,
+            p.gross_pay,
+            p.overtime_pay,
+            p.kpi_bonus,
+            p.deductions,
+            p.net_pay,
+            p.status,
+            COALESCE(p.payment_method, e.payment_method, 'MPESA') AS payment_method,
+            p.payment_reference,
+            p.payment_error,
+            p.mpesa_transaction_id,
+            p.disbursed_at,
+            p.created_at,
+            p.updated_at,
+            e.first_name,
+            e.last_name,
+            e.phone AS phone_number,
+            e.mpesa_phone_number,
+            e.bank_account_number,
+            e.bank_code,
+            e.department
+     FROM payslips p
+     JOIN employees e ON e.id = p.employee_id
+     WHERE p.id = $1`, [id]
+  );
+  return rows[0] || null;
+};
+
 const calculatePayroll = async (req, res) => {
   try {
     const employeeId = normalizeId(req.body.employeeId || req.query.employeeId);
@@ -270,19 +302,27 @@ const extractMpesaCallback = (body = {}) => {
 
 const disbursePayroll = async (req, res) => {
   try {
-    const approvedPayslips = await getApprovedPayslips();
+    let payslipsToProcess = [];
+    if (req.body && req.body.payslipId) {
+      const payslip = await getPayslipById(req.body.payslipId);
+      if (payslip && ['Approved', 'Failed'].includes(payslip.status)) {
+        payslipsToProcess = [payslip];
+      }
+    } else {
+      payslipsToProcess = await getApprovedPayslips();
+    }
 
-    if (!approvedPayslips.length) {
+    if (!payslipsToProcess.length) {
       return res.json({
         success: true,
-        message: 'No approved payslips to disburse',
+        message: 'No valid approved or failed payslips found to disburse',
         summary: { total: 0, paid: 0, processing: 0, failed: 0, mpesa: 0, bank: 0 },
         results: [],
       });
     }
 
     const summary = {
-      total: approvedPayslips.length,
+      total: payslipsToProcess.length,
       paid: 0,
       processing: 0,
       failed: 0,
@@ -291,7 +331,7 @@ const disbursePayroll = async (req, res) => {
     };
     const results = [];
 
-    for (const payslip of approvedPayslips) {
+    for (const payslip of payslipsToProcess) {
       const paymentMethod = normalizePaymentMethod(payslip.payment_method);
 
       if (paymentMethod === 'BANK') {

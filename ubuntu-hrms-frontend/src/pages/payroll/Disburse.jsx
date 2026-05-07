@@ -1,22 +1,68 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import DashboardLayout from '../../components/DashboardLayout'
-import { payrollAPI } from '../../services/api'
+import api, { payrollAPI } from '../../services/api'
+import Modal from '../../components/common/Modal'
+import { downloadPdfReport } from '../../utils/reportExport'
 
 const formatMoney = (value) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(Number(value || 0))
 
 export default function PayrollDisburse() {
+  const [activeTab, setActiveTab] = useState('disbursements')
   const [payslips, setPayslips] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [summary, setSummary] = useState(null)
+  const [viewPayslip, setViewPayslip] = useState(null)
+  const [disbursingId, setDisbursingId] = useState(null)
 
   const activePayslips = useMemo(() => {
     return payslips.filter((payslip) => ['approved', 'processing', 'paid', 'failed'].includes(String(payslip.status).toLowerCase()))
   }, [payslips])
 
   const readyToDisburseCount = activePayslips.filter(p => String(p.status).toLowerCase() === 'approved').length;
+
+  const stats = useMemo(() => {
+    return {
+      total: activePayslips.length,
+      paid: activePayslips.filter(c => String(c.status).toLowerCase() === 'paid').length,
+      failed: activePayslips.filter(c => String(c.status).toLowerCase() === 'failed').length,
+      processing: activePayslips.filter(c => String(c.status).toLowerCase() === 'processing').length,
+      approved: activePayslips.filter(c => String(c.status).toLowerCase() === 'approved').length,
+    };
+  }, [activePayslips]);
+
+  const paidPct = stats.total > 0 ? (stats.paid / stats.total) * 100 : 0;
+  const failedPct = stats.total > 0 ? (stats.failed / stats.total) * 100 : 0;
+  const processingPct = stats.total > 0 ? (stats.processing / stats.total) * 100 : 0;
+  const approvedPct = stats.total > 0 ? (stats.approved / stats.total) * 100 : 0;
+
+  const pieGradient = `conic-gradient(
+    #22c55e 0% ${paidPct}%,
+    #ef4444 ${paidPct}% ${paidPct + failedPct}%,
+    #f59e0b ${paidPct + failedPct}% ${paidPct + failedPct + processingPct}%,
+    #3b82f6 ${paidPct + failedPct + processingPct}% 100%
+  )`;
+
+  const handleExportReport = async () => {
+    await downloadPdfReport({
+      fileName: 'disbursement-report.pdf',
+      title: 'Payroll Disbursement Report',
+      rows: activePayslips,
+      columns: [
+        { label: 'Employee', getValue: (row) => [row.first_name, row.last_name].filter(Boolean).join(' ') || `Emp ${row.employee_id}` },
+        { label: 'Period', getValue: (row) => row.period },
+        { label: 'Method', getValue: (row) => row.payment_method },
+        { label: 'Net Pay', getValue: (row) => row.net_pay },
+        { label: 'Status', getValue: (row) => row.status },
+        { label: 'Reference', getValue: (row) => row.mpesa_transaction_id || row.payment_reference || 'N/A' },
+      ],
+      metadata: [
+        { label: 'Total Payslips', value: String(activePayslips.length) },
+      ],
+    });
+  };
 
   const totalsByPeriod = useMemo(() => {
     return activePayslips.reduce((accumulator, payslip) => {
@@ -28,7 +74,7 @@ export default function PayrollDisburse() {
       accumulator[period].netPay += Number(payslip.net_pay || 0)
       return accumulator
     }, {})
-  }, [approvedPayslips])
+  }, [activePayslips])
 
   const loadData = async (silent = false) => {
     try {
@@ -82,22 +128,25 @@ export default function PayrollDisburse() {
     }
   }
 
+  const initiateSingleDisbursement = async (id) => {
+    try {
+      setDisbursingId(id)
+      const response = await api.post('/api/payroll/disburse', { payslipId: id })
+      toast.success(response.data?.message || 'Payment initiated for employee')
+      await loadData()
+    } catch (disburseError) {
+      const message = disburseError.response?.data?.error || disburseError.message || 'Failed to initiate payment'
+      toast.error(message)
+    } finally {
+      setDisbursingId(null)
+    }
+  }
+
   return (
     <DashboardLayout>
-      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950 dark:text-white">Payroll Disbursement</h1>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-            Review approved payslips and trigger M-Pesa or bank payout batches from one place.
-          </p>
-        </div>
-        <button
-          onClick={initiateDisbursement}
-          disabled={submitting || readyToDisburseCount === 0}
-          className="inline-flex items-center justify-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950"
-        >
-          {submitting ? 'Initiating Disbursement...' : `Disburse ${readyToDisburseCount} Payslip(s)`}
-        </button>
+      <div className="page-header mb-6">
+        <h1 className="page-title">Payroll Disbursement</h1>
+        <p className="page-subtitle">Review approved payslips, trigger payouts, and view reports.</p>
       </div>
 
       {error && (
@@ -105,6 +154,41 @@ export default function PayrollDisburse() {
           {error}
         </div>
       )}
+
+      <div className="flex space-x-4 mb-6 border-b border-slate-200 dark:border-slate-700">
+        <button
+          className={`pb-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'disbursements' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+          onClick={() => setActiveTab('disbursements')}
+        >
+          Disbursements
+        </button>
+        <button
+          className={`pb-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'analytics' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+          onClick={() => setActiveTab('analytics')}
+        >
+          Analytics & Reports
+        </button>
+      </div>
+
+      {activeTab === 'disbursements' && (
+      <>
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <button
+            onClick={handleExportReport}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
+          >
+            Export Report
+          </button>
+        </div>
+        <button
+          onClick={initiateDisbursement}
+          disabled={submitting || readyToDisburseCount === 0}
+          className="inline-flex items-center justify-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950"
+        >
+          {submitting ? 'Initiating Disbursement...' : `Disburse ${readyToDisburseCount} Approved Payslip(s)`}
+        </button>
+      </div>
 
       {summary && (
         <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -147,6 +231,7 @@ export default function PayrollDisburse() {
                     <th className="px-4 py-3 font-medium">Method</th>
                     <th className="px-4 py-3 font-medium">Net Pay</th>
                     <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -171,6 +256,23 @@ export default function PayrollDisburse() {
                             {payslip.status === 'Processing' ? '⏳ Processing' : payslip.status}
                           </span>
                         </td>
+                          <td className="px-4 py-4 flex gap-2">
+                            <button
+                              onClick={() => setViewPayslip(payslip)}
+                              className="text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-800 px-3 py-1.5 rounded-lg transition dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                            >
+                              View
+                            </button>
+                            {(statusLower === 'approved' || statusLower === 'failed') && (
+                              <button
+                                onClick={() => initiateSingleDisbursement(payslip.id)}
+                                disabled={disbursingId === payslip.id || submitting}
+                                className="text-xs font-semibold bg-primary hover:bg-primary-dark text-white px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+                              >
+                                {disbursingId === payslip.id ? '...' : (statusLower === 'failed' ? 'Retry Pay' : 'Pay Now')}
+                              </button>
+                            )}
+                          </td>
                       </tr>
                     );
                   })}
@@ -211,6 +313,108 @@ export default function PayrollDisburse() {
           </section>
         </aside>
       </div>
+      </>
+      )}
+
+      {activeTab === 'analytics' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <p className="text-sm text-slate-500 dark:text-slate-400 uppercase font-semibold">Total Payslips</p>
+              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-2">{stats.total}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <p className="text-sm text-slate-500 dark:text-slate-400 uppercase font-semibold">Approved</p>
+              <p className="text-3xl font-bold text-blue-600 dark:text-blue-500 mt-2">{stats.approved}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <p className="text-sm text-slate-500 dark:text-slate-400 uppercase font-semibold">Paid</p>
+              <p className="text-3xl font-bold text-green-600 dark:text-green-500 mt-2">{stats.paid}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <p className="text-sm text-slate-500 dark:text-slate-400 uppercase font-semibold">Failed</p>
+              <p className="text-3xl font-bold text-red-600 dark:text-red-500 mt-2">{stats.failed}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 flex flex-col items-center">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-6 w-full text-left">Status Distribution</h3>
+              {stats.total === 0 ? (
+                <div className="text-slate-500 py-12">No data available</div>
+              ) : (
+                <>
+                  <div className="w-48 h-48 rounded-full shadow-inner mb-6" style={{ background: pieGradient }} />
+                  <div className="w-full flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500"></span><span className="text-sm font-medium text-slate-700 dark:text-slate-300">Paid</span></div>
+                      <span className="text-sm font-bold">{paidPct.toFixed(1)}% ({stats.paid})</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500"></span><span className="text-sm font-medium text-slate-700 dark:text-slate-300">Failed</span></div>
+                      <span className="text-sm font-bold">{failedPct.toFixed(1)}% ({stats.failed})</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-amber-500"></span><span className="text-sm font-medium text-slate-700 dark:text-slate-300">Processing</span></div>
+                      <span className="text-sm font-bold">{processingPct.toFixed(1)}% ({stats.processing})</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-blue-500"></span><span className="text-sm font-medium text-slate-700 dark:text-slate-300">Approved</span></div>
+                      <span className="text-sm font-bold">{approvedPct.toFixed(1)}% ({stats.approved})</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-6">Totals by Period</h3>
+              <div className="space-y-6">
+                {Object.keys(totalsByPeriod).length === 0 ? (
+                   <p className="text-slate-500 py-4">No period data available.</p>
+                ) : (
+                  Object.entries(totalsByPeriod).map(([period, metrics]) => (
+                    <div key={period} className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{period}</span>
+                        <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{formatMoney(metrics.netPay)}</span>
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">{metrics.count} payslips</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Modal isOpen={!!viewPayslip} onClose={() => setViewPayslip(null)} title="M-Pesa / Bank Details">
+        {viewPayslip && (
+          <div className="space-y-4 text-sm text-slate-700 dark:text-slate-300">
+            <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">Employee:</span>
+              <span>{viewPayslip.first_name} {viewPayslip.last_name}</span>
+            </div>
+            <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">Method:</span>
+              <span className="font-mono">{viewPayslip.payment_method}</span>
+            </div>
+            <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">Transaction ID / Ref:</span>
+              <span className="font-mono text-sm">{viewPayslip.mpesa_transaction_id || viewPayslip.payment_reference || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">Payment Error:</span>
+              <span className="text-rose-500 text-sm">{viewPayslip.payment_error || 'None'}</span>
+            </div>
+            <div className="flex justify-between pt-2 text-lg font-bold text-emerald-700 dark:text-emerald-500">
+              <span>Net Payout:</span>
+              <span>{formatMoney(viewPayslip.net_pay)}</span>
+            </div>
+          </div>
+        )}
+      </Modal>
     </DashboardLayout>
   )
 }

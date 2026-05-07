@@ -54,6 +54,15 @@ export default function ContractReview() {
     toast.success('Milestone approved for payment')
   }
 
+  const approveInvoice = (id) => {
+    const next = backendInvoices.map((inv) => {
+      if (inv.id !== id) return inv;
+      return { ...inv, status: 'Approved' };
+    });
+    setBackendInvoices(next);
+    toast.success('Invoice approved for payment');
+  };
+
   return (
     <DashboardLayout>
       <div className="mb-8">
@@ -75,12 +84,43 @@ export default function ContractReview() {
               <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Submitted Milestones</h2>
             </div>
             <div className="space-y-4 p-6">
-              {milestones.length === 0 ? (
+            {milestones.length === 0 && backendInvoices.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                  No milestones have been submitted yet.
+                No milestones or invoices have been submitted yet.
                 </div>
               ) : (
-                milestones.map((milestone) => (
+              <>
+                {backendInvoices.map((invoice) => (
+                  <div key={invoice.id} className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-950 dark:text-white">Invoice #{invoice.id}</div>
+                        <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Due: {invoice.due ? new Date(invoice.due).toLocaleDateString() : 'N/A'}</div>
+                      </div>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${['approved', 'paid'].includes(String(invoice.status).toLowerCase()) ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'}`}>
+                        {invoice.status}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-lg font-bold text-slate-900 dark:text-slate-100">KES {Number(invoice.amount).toLocaleString()}</p>
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button
+                        onClick={() => setSelectedMilestone({ type: 'invoice', ...invoice })}
+                        className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-white dark:border-slate-700 dark:text-white dark:hover:bg-slate-900"
+                      >
+                        View Invoice
+                      </button>
+                      {!['approved', 'paid'].includes(String(invoice.status).toLowerCase()) && (
+                        <button
+                          onClick={() => approveInvoice(invoice.id)}
+                          className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950"
+                        >
+                          Approve for Payment
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {milestones.map((milestone) => (
                   <div key={milestone.id} className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -109,7 +149,9 @@ export default function ContractReview() {
                     </div>
                   </div>
                 ))
-              )}
+                }
+              </>
+            )}
             </div>
           </section>
 
@@ -121,7 +163,28 @@ export default function ContractReview() {
               </p>
             </div>
 
-            {selectedMilestone ? (
+          {selectedMilestone && selectedMilestone.type === 'invoice' ? (
+            <div className="space-y-4">
+              <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">
+                <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Invoice ID</div>
+                <div className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{selectedMilestone.id}</div>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">
+                <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Amount</div>
+                <div className="mt-1 text-sm text-slate-800 dark:text-slate-200">KES {Number(selectedMilestone.amount).toLocaleString()}</div>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">
+                <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Due Date</div>
+                <div className="mt-1 text-sm text-slate-800 dark:text-slate-200">{selectedMilestone.due ? new Date(selectedMilestone.due).toLocaleDateString() : 'N/A'}</div>
+              </div>
+              <button
+                onClick={() => approveInvoice(selectedMilestone.id)}
+                className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500"
+              >
+                Approve for Payment
+              </button>
+            </div>
+          ) : selectedMilestone ? (
               <div className="space-y-4">
                 <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">
                   <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Project</div>
@@ -149,8 +212,8 @@ export default function ContractReview() {
             )}
 
             <div className="rounded-2xl border border-slate-200 bg-slate-950 p-4 text-white dark:bg-white dark:text-slate-950">
-              <div className="text-sm font-semibold">Backend invoices</div>
-              <div className="mt-1 text-sm text-slate-300 dark:text-slate-700">{backendInvoices.length} invoice record(s) loaded from the backend.</div>
+              <div className="text-sm font-semibold">Invoices </div>
+              <div className="mt-1 text-sm text-slate-300 dark:text-slate-700">{backendInvoices.length} invoice record(s) loaded.</div>
             </div>
           </aside>
         </div>
