@@ -1,7 +1,7 @@
 import React from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { BsBoxArrowRight, BsGear } from 'react-icons/bs'
+import { BsBoxArrowRight, BsGear, BsPersonCircle } from 'react-icons/bs'
 import ThemeToggle from './ThemeToggle'
 
 const Header = ({ onToggleSidebar }) => {
@@ -42,8 +42,9 @@ const Header = ({ onToggleSidebar }) => {
           <ThemeToggle />
           
           <div className="flex items-center gap-4 border-l border-slate-200 dark:border-slate-700 pl-4">
+            <BsPersonCircle size={24} className="text-slate-700 dark:text-slate-300" />
             <span className="text-slate-700 dark:text-slate-300 font-medium hidden sm:inline">
-              {user?.username || 'User'}
+              {user?.username || user?.name || user?.email || 'Guest'}
             </span>
             <div className="flex items-center gap-2">
               <button 
