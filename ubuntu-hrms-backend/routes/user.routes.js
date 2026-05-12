@@ -3,6 +3,7 @@ const auth = require('../middleware/auth.middleware');
 const roleMiddleware = require('../middleware/roleMiddleware');
 const {
   getUsers,
+  getUserById,
   approveUser,
   updateUser,
   deleteUser,
@@ -13,6 +14,8 @@ const router = express.Router();
 
 // List all users (admin/hr)
 router.get('/', auth, roleMiddleware(['admin', 'hr']), getUsers);
+// Get single user (admin/hr)
+router.get('/:id', auth, roleMiddleware(['admin', 'hr']), getUserById);
 // Approve user (admin/hr)
 router.post('/:id/approve', auth, roleMiddleware(['admin', 'hr']), approveUser);
 // Update user (admin/hr)

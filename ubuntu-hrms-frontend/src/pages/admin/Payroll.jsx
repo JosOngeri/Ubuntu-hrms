@@ -98,7 +98,7 @@ export default function Payroll() {
           <form onSubmit={handleCalculate} className="space-y-4">
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Employee</label>
-              <select className="form-select w-full" value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})} required>
+              <select className="form-select w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})} required>
                 <option value="">Select Employee</option>
                 {employees.map(emp => (
                   <option key={emp.id || emp._id} value={emp.id || emp._id}>{emp.firstName} {emp.lastName}</option>

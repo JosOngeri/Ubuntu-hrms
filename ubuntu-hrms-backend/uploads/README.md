@@ -46,4 +46,4 @@ To use real documents in production:
 - Maximum file size: 10MB per document
 - Allowed formats: PDF, JPG, PNG
 
-Generated: 2026-05-07T10:18:03.698Z
+Generated: 2026-05-07T11:46:28.502Z

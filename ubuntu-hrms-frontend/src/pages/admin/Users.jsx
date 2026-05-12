@@ -71,7 +71,7 @@ const AdminUsers = () => {
   const handleApprove = async (e) => {
     e.preventDefault();
     try {
-      await userAPI.approve(approveUser.id, approveDetails);
+      await userAPI.approve(approveUser._id || approveUser.id, approveDetails);
       toast.success('User approved');
       setShowApproveModal(false);
       setApproveUser(null);
@@ -86,9 +86,9 @@ const AdminUsers = () => {
     try {
       // Fallback in case userAPI.update is not explicitly defined in api.js
       if (userAPI.update) {
-        await userAPI.update(editUser.id, editData);
+        await userAPI.update(editUser._id || editUser.id, editData);
       } else {
-        await api.put(`/api/users/${editUser.id}`, editData);
+        await api.put(`/api/users/${editUser._id || editUser.id}`, editData);
       }
       toast.success('User updated successfully');
       setShowEditModal(false);
@@ -109,7 +109,20 @@ const AdminUsers = () => {
       label: 'Actions',
       render: (_, row) => (
         <div className="flex gap-2 items-center">
-          <button className="p-1.5 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded dark:bg-blue-900/30 dark:text-blue-400 transition" title="View Details" onClick={() => navigate(`/admin/users/${row.id}`)}>
+          <button 
+            type="button"
+            className="p-1.5 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded dark:bg-blue-900/30 dark:text-blue-400 transition" 
+            title="View Details" 
+            onClick={(e) => {
+              e.preventDefault();
+              const userId = row._id || row.id || row.user_id || row.userId;
+              if (!userId) {
+                toast.error('User ID is missing from this record');
+                return;
+              }
+              navigate(`/admin/users/${userId}`);
+            }}
+          >
             <BsEye size={16} />
           </button>
           <button className="p-1.5 bg-amber-100 text-amber-600 hover:bg-amber-200 rounded dark:bg-amber-900/30 dark:text-amber-400 transition" title="Edit User" onClick={() => { 
@@ -124,7 +137,7 @@ const AdminUsers = () => {
               <BsCheckCircle size={16} />
             </button>
           )}
-          <button className="p-1.5 bg-red-100 text-red-600 hover:bg-red-200 rounded dark:bg-red-900/30 dark:text-red-400 transition" title="Delete User" onClick={() => handleDelete(row.id)}>
+          <button className="p-1.5 bg-red-100 text-red-600 hover:bg-red-200 rounded dark:bg-red-900/30 dark:text-red-400 transition" title="Delete User" onClick={() => handleDelete(row._id || row.id)}>
             <BsTrash size={16} />
           </button>
         </div>

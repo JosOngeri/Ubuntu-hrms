@@ -23,6 +23,10 @@ export default function KPI() {
   const [form, setForm] = useState({ name: '', description: '', target: '' });
   const [editing, setEditing] = useState(null);
 
+  // Assign KPI Form State
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignForm, setAssignForm] = useState({ employee_id: '', kpi_definition_id: '', period: '', target_value: '' });
+
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -110,13 +114,37 @@ export default function KPI() {
   };
 
   const getEmployeeName = (empId) => {
+    if (!empId) return 'Unassigned';
     const emp = employees.find(e => String(e.id) === String(empId) || String(e._id) === String(empId));
-    return emp ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() : empId;
+    return emp ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.username || emp.email : empId;
+  };
+
+  const handleAssignSubmit = async e => {
+    e.preventDefault();
+    try {
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const evaluatorId = currentUser.id || currentUser._id || assignForm.employee_id;
+
+      await api.post('/api/kpis/assign', { 
+        employeeId: assignForm.employee_id,
+        definitionId: assignForm.kpi_definition_id,
+        evaluatorId: evaluatorId,
+        period: assignForm.period,
+        targetValue: Number(assignForm.target_value)
+      });
+      toast.success('KPI assigned successfully');
+      setShowAssignModal(false);
+      setAssignForm({ employee_id: '', kpi_definition_id: '', period: '', target_value: '' });
+      fetchInitialData();
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.response?.data?.msg || 'Failed to assign KPI');
+    }
   };
 
   const filteredEmployeeKpis = useMemo(() => {
     return employeeKpis.filter(kpi => {
-      const empName = String(getEmployeeName(kpi.employee_id)).toLowerCase();
+      const empId = kpi.employee_id || kpi.employeeId || kpi.employee || kpi.user_id;
+      const empName = String(getEmployeeName(empId)).toLowerCase();
       const kpiTitle = String(kpi.definition_title || kpi.title || '').toLowerCase();
       const search = searchQuery.toLowerCase();
       
@@ -133,7 +161,7 @@ export default function KPI() {
       title: 'Company Global KPI Performance Report',
       rows: filteredEmployeeKpis,
       columns: [
-        { label: 'Employee', getValue: (row) => getEmployeeName(row.employee_id) },
+        { label: 'Employee', getValue: (row) => getEmployeeName(row.employee_id || row.employeeId || row.employee || row.user_id) },
         { label: 'KPI Title', getValue: (row) => row.definition_title || row.title || 'N/A' },
         { label: 'Period', getValue: (row) => row.period || '' },
         { label: 'Target', getValue: (row) => String(row.target_value || '') },
@@ -161,7 +189,7 @@ export default function KPI() {
   ];
 
   const globalKpiColumns = [
-    { key: 'employee', label: 'Employee', render: (_, row) => getEmployeeName(row.employee_id) },
+    { key: 'employee', label: 'Employee', render: (_, row) => getEmployeeName(row.employee_id || row.employeeId || row.employee || row.user_id) },
     { key: 'title', label: 'Goal Title', render: (_, row) => row.definition_title || row.title || 'N/A' },
     { key: 'period', label: 'Quarter', render: (_, row) => row.period },
     { key: 'target_value', label: 'Target', render: (_, row) => row.target_value },
@@ -248,6 +276,9 @@ export default function KPI() {
             <Button type="button" variant="secondary" onClick={handleExportGlobalReport}>
               Export Report
             </Button>
+            <Button variant="primary" onClick={() => setShowAssignModal(true)}>
+              + Assign KPI
+            </Button>
           </div>
           {employeeKpis.length === 0 && !loading ? (
             <div className="text-center py-8 text-slate-500 border border-dashed border-slate-300 rounded-lg">
@@ -320,6 +351,68 @@ export default function KPI() {
           <div className="flex gap-2 justify-end mt-4">
              <Button type="submit" variant="primary">{editing ? 'Update' : 'Create'}</Button>
              <Button type="button" variant="ghost" onClick={() => setShowDefModal(false)}>Cancel</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal for Assigning a KPI to an Employee */}
+      <Modal isOpen={showAssignModal} onClose={() => setShowAssignModal(false)} title="Assign KPI to Employee">
+        <form onSubmit={handleAssignSubmit} className="space-y-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Employee</label>
+            <select className="form-select" value={assignForm.employee_id} onChange={e => setAssignForm({...assignForm, employee_id: e.target.value})} required>
+              <option value="">Select Employee</option>
+              {employees.map(emp => (
+                <option key={emp.id || emp._id} value={emp.id || emp._id}>{emp.firstName || emp.username} {emp.lastName || ''}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">KPI Definition</label>
+            <select className="form-select" value={assignForm.kpi_definition_id} onChange={e => {
+              const def = kpiDefs.find(d => String(d.id || d._id) === String(e.target.value));
+              setAssignForm({
+                ...assignForm, 
+                kpi_definition_id: e.target.value,
+                target_value: def ? (def.target || def.maxScore || def.max_score || '') : assignForm.target_value
+              });
+            }} required>
+              <option value="">Select KPI from Library</option>
+              {kpiDefs.map(def => (
+                <option key={def.id || def._id} value={def.id || def._id}>{def.name || def.title}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Period</label>
+            <select className="form-select" value={assignForm.period} onChange={e => setAssignForm({...assignForm, period: e.target.value})} required>
+              <option value="">Select Period</option>
+              <optgroup label={`${new Date().getFullYear()} Quarters`}>
+                {['Q1', 'Q2', 'Q3', 'Q4'].map(q => (
+                  <option key={`${q} ${new Date().getFullYear()}`} value={`${q} ${new Date().getFullYear()}`}>{q} {new Date().getFullYear()}</option>
+                ))}
+              </optgroup>
+              <optgroup label={`${new Date().getFullYear()} Months`}>
+                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map(m => (
+                  <option key={`${m} ${new Date().getFullYear()}`} value={`${m} ${new Date().getFullYear()}`}>{m} {new Date().getFullYear()}</option>
+                ))}
+              </optgroup>
+              <optgroup label={`${new Date().getFullYear() + 1} Quarters`}>
+                {['Q1', 'Q2', 'Q3', 'Q4'].map(q => (
+                  <option key={`${q} ${new Date().getFullYear() + 1}`} value={`${q} ${new Date().getFullYear() + 1}`}>{q} {new Date().getFullYear() + 1}</option>
+                ))}
+              </optgroup>
+              <optgroup label={`${new Date().getFullYear() + 1} Months`}>
+                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map(m => (
+                  <option key={`${m} ${new Date().getFullYear() + 1}`} value={`${m} ${new Date().getFullYear() + 1}`}>{m} {new Date().getFullYear() + 1}</option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+          <Input label="Target Value" type="number" value={assignForm.target_value} onChange={e => setAssignForm({...assignForm, target_value: e.target.value})} required />
+          <div className="flex gap-2 justify-end mt-4">
+             <Button type="submit" variant="primary">Assign KPI</Button>
+             <Button type="button" variant="ghost" onClick={() => setShowAssignModal(false)}>Cancel</Button>
           </div>
         </form>
       </Modal>

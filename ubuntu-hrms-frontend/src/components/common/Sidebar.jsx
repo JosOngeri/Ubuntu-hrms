@@ -114,8 +114,8 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
         title: 'Team Time & Leave',
         items: [
           { path: '/manager/attendance', label: 'Attendance', icon: BsClipboardCheck },
-          { path: '/manager/leaves', label: 'Leave Approvals', icon: BsCalendarCheck },
-          { path: '/leave/approvals', label: 'Pending Approvals', icon: BsCheckCircle },
+          { path: '/manager/leaves', label: 'Leave Overview', icon: BsCalendarCheck },
+          { path: '/leave/approvals', label: 'Leave Management', icon: BsCheckCircle },
           { path: '/leave/statutory', label: 'Statutory Leave Review', icon: BsFileEarmarkText },
         ]
       },
@@ -123,6 +123,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
         title: 'Performance',
         items: [
           { path: '/kpi/manage', label: 'Manage KPIs', icon: BsGraphUp },
+          { path: '/kpi/assesment', label: 'KPI Assessment', icon: BsCheckCircle },
         ]
       },
       // {

@@ -1,6 +1,9 @@
-import React from 'react'
+import React, { useState } from 'react'
 
 const Table = ({ columns, data, loading = false, className = '' }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
   if (loading) {
     return (
       <div className="w-full overflow-x-auto">
@@ -21,6 +24,20 @@ const Table = ({ columns, data, loading = false, className = '' }) => {
     )
   }
 
+  const indexOfLastRow = currentPage * rowsPerPage;
+  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
+  const currentRows = data.slice(indexOfFirstRow, indexOfLastRow);
+  const totalPages = Math.ceil(data.length / rowsPerPage);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
+  const handleRowsPerPageChange = (e) => {
+    setRowsPerPage(Number(e.target.value));
+    setCurrentPage(1);
+  };
+
   return (
     <div className={`w-full overflow-x-auto ${className}`}>
       <table className="w-full border-collapse">
@@ -38,7 +55,7 @@ const Table = ({ columns, data, loading = false, className = '' }) => {
           </tr>
         </thead>
         <tbody>
-          {data.map((row, rowIdx) => (
+          {currentRows.map((row, rowIdx) => (
             <tr 
               key={rowIdx}
               className="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-150"
@@ -55,6 +72,44 @@ const Table = ({ columns, data, loading = false, className = '' }) => {
           ))}
         </tbody>
       </table>
+
+      {/* Pagination Controls */}
+      <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700 gap-4">
+        <div className="flex items-center text-sm text-slate-600 dark:text-slate-400">
+          <span>Show</span>
+          <select 
+            value={rowsPerPage} 
+            onChange={handleRowsPerPageChange}
+            className="mx-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-slate-900 dark:text-slate-100 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+          <span>entries</span>
+        </div>
+        
+        <div className="flex items-center space-x-2 text-sm">
+          <button 
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="px-3 py-1 border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            Previous
+          </button>
+          <span className="text-slate-600 dark:text-slate-400">
+            Page {currentPage} of {totalPages || 1}
+          </span>
+          <button 
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages || totalPages === 0}
+            className="px-3 py-1 border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

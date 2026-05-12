@@ -7,9 +7,9 @@ const app = express();
 
 const allowedOrigins = [
   'https://ubuntu-hrms12.vercel.app',
+  'http://localhost:3000',
   'https://ubuntu-hrms12.vercel.app',
   process.env.FRONTEND_ORIGIN,
-  'https://ubuntu-hrms-epmc.onrender.com',
 ].filter(Boolean);
 
 app.use(
@@ -17,13 +17,19 @@ app.use(
     origin: function (origin, callback) {
       // allow requests with no origin (like mobile apps, curl, etc.)
       if (!origin) return callback(null, true);
+      
+      // Allow any localhost development origin
+      if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+        return callback(null, true);
+      }
+
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
       return callback(new Error('Not allowed by CORS: ' + origin));
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'x-auth-token'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'Origin', 'Accept', 'X-Requested-With'],
     credentials: true,
   })
 );

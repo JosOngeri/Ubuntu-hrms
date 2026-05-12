@@ -15,6 +15,17 @@ const getUsers = async (req, res) => {
   }
 };
 
+// Get a single user by id
+const getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ msg: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    res.status(500).send('Server error');
+  }
+};
+
 // Approve a user (set status to active, fill in details if employee)
 const approveUser = async (req, res) => {
   try {
@@ -78,6 +89,7 @@ const assignRole = async (req, res) => {
 
 module.exports = {
   getUsers,
+  getUserById,
   approveUser,
   updateUser,
   deleteUser,

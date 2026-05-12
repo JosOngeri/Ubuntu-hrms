@@ -37,7 +37,7 @@ const Permissions = () => {
 
   const handleRoleChange = async (user) => {
     try {
-      await userAPI.assignRole(user.id, newRole);
+      await userAPI.assignRole(user._id || user.id, newRole);
       toast.success('Role updated');
       setEditingUser(null);
       fetchUsers();
@@ -55,7 +55,17 @@ const Permissions = () => {
       label: 'Actions',
       render: (_, row) => (
         <div className="flex gap-2">
-          <Button size="sm" variant="primary" onClick={() => navigate(`/admin/users/${row.id}`)}>View Details</Button>
+          <Button size="sm" variant="primary" onClick={(e) => {
+            e.preventDefault();
+            const userId = row._id || row.id || row.user_id || row.userId;
+            if (!userId) {
+              toast.error('User ID is missing');
+              return;
+            }
+            navigate(`/admin/users/${userId}`);
+          }}>
+            View Details
+          </Button>
           <Button size="sm" variant="secondary" onClick={() => { setEditingUser(row); setNewRole(row.role); }}>Change Role</Button>
         </div>
       ),
@@ -108,7 +118,7 @@ const Permissions = () => {
             <select className="form-select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
               <option value="all">All roles</option>
               <option value="employee">Employee</option>
-              <option value="hr">HR</option>
+              <option value="supervisor">Supervisor</option>
               <option value="manager">Manager</option>
               <option value="admin">Admin</option>
             </select>
@@ -123,7 +133,7 @@ const Permissions = () => {
             <h3 className="text-lg font-bold mb-4">Change Role for {editingUser.username}</h3>
             <select value={newRole} onChange={e => setNewRole(e.target.value)} className="form-select w-full mb-4">
               <option value="employee">Employee</option>
-              <option value="hr">HR</option>
+              <option value="supervisor">Supervisor</option>
               <option value="manager">Manager</option>
               <option value="admin">Admin</option>
             </select>

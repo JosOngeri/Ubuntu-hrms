@@ -40,10 +40,16 @@ const Login = () => {
       setTimeout(() => {
         if (user.role === 'admin') {
           navigate('/admin/dashboard')
-        } else if (user.role === 'manager' || user.role === 'supervisor') {
-          navigate('/manager/dashboard')
-        } else {
-          navigate('/employee/dashboard')
+        } 
+        else if (user.role === 'manager' || user.role === 'supervisor') {
+          navigate('/manager/dashboard')}
+        
+            else if (user.role === 'employee') {
+              navigate('/employee/dashboard')
+            }
+    
+        else  {
+          navigate('/contractor/dashboard')
         }
       }, 500)
     } catch (error) {

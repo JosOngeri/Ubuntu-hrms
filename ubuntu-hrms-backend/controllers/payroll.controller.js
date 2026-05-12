@@ -1,4 +1,5 @@
 const { query } = require('../config/db');
+const { Pool } = require('pg');
 const { normalizeId, formatDateOnly, toDate, toOptionalText } = require('../utils/postgres');
 const { sendMpesaB2C } = require('../utils/mpesa');
 
@@ -458,46 +459,66 @@ const disbursePayroll = async (req, res) => {
   }
 };
 
+// Universal handler for both ResultURL and QueueTimeoutURL
+const storeMpesaCallback = async (type, body) => {
+  // Extract reference and status for easier querying
+  let reference = null, status_code = null, status_desc = null;
+  try {
+    if (body?.Result) {
+      reference = body.Result.OriginatorConversationID || body.Result.ConversationID || body.Result.TransactionID || null;
+      status_code = body.Result.ResultCode || null;
+      status_desc = body.Result.ResultDesc || null;
+    }
+  } catch {}
+  await query(
+    `INSERT INTO mpesa_callbacks (callback_type, reference, status_code, status_desc, payload) VALUES ($1, $2, $3, $4, $5)`,
+    [type, reference, status_code, status_desc, body]
+  );
+};
+
 const handleMpesaCallback = async (req, res) => {
   try {
-    const callback = extractMpesaCallback(req.body);
+    const type = req.path.includes('timeout') ? 'timeout' : 'result';
+    await storeMpesaCallback(type, req.body);
+    console.log(`[M-PESA CALLBACK] ${type.toUpperCase()} received`, JSON.stringify(req.body));
 
-    if (!callback.reference) {
-      console.error('[Payroll] M-Pesa callback missing reference', req.body);
-      return res.status(400).json({ error: 'Callback reference missing' });
+    // Only update payslip status for ResultURL (not timeout)
+    if (type === 'result') {
+      const callback = extractMpesaCallback(req.body);
+      if (!callback.reference) {
+        console.error('[Payroll] M-Pesa callback missing reference', req.body);
+        return res.status(400).json({ error: 'Callback reference missing' });
+      }
+      const isSuccess = Number(callback.resultCode) === 0;
+      const newStatus = isSuccess ? 'Paid' : 'Failed';
+      const paymentError = isSuccess ? null : callback.resultDesc;
+      const { rows } = await query(
+        `UPDATE payslips
+         SET status = $1,
+             payment_error = $2,
+             disbursed_at = CASE WHEN $1 = 'Paid' THEN COALESCE(disbursed_at, NOW()) ELSE disbursed_at END,
+             updated_at = NOW()
+         WHERE payment_reference = $3
+            OR mpesa_transaction_id = $3
+            OR CAST(id AS TEXT) = $3
+         RETURNING *`,
+        [newStatus, paymentError, callback.reference]
+      );
+      if (!rows[0]) {
+        console.error('[Payroll] No payslip found for callback reference', callback.reference);
+        return res.status(404).json({ error: 'Payslip not found for callback reference' });
+      }
+      if (!isSuccess) {
+        console.error('[Payroll] M-Pesa callback reported failure', {
+          reference: callback.reference,
+          resultCode: callback.resultCode,
+          resultDesc: callback.resultDesc,
+        });
+      }
+      return res.json({ success: true, payslip: rows[0], callback });
     }
-
-    const isSuccess = Number(callback.resultCode) === 0;
-    const newStatus = isSuccess ? 'Paid' : 'Failed';
-    const paymentError = isSuccess ? null : callback.resultDesc;
-
-    const { rows } = await query(
-      `UPDATE payslips
-       SET status = $1,
-           payment_error = $2,
-           disbursed_at = CASE WHEN $1 = 'Paid' THEN COALESCE(disbursed_at, NOW()) ELSE disbursed_at END,
-           updated_at = NOW()
-       WHERE payment_reference = $3
-          OR mpesa_transaction_id = $3
-          OR CAST(id AS TEXT) = $3
-       RETURNING *`,
-      [newStatus, paymentError, callback.reference]
-    );
-
-    if (!rows[0]) {
-      console.error('[Payroll] No payslip found for callback reference', callback.reference);
-      return res.status(404).json({ error: 'Payslip not found for callback reference' });
-    }
-
-    if (!isSuccess) {
-      console.error('[Payroll] M-Pesa callback reported failure', {
-        reference: callback.reference,
-        resultCode: callback.resultCode,
-        resultDesc: callback.resultDesc,
-      });
-    }
-
-    return res.json({ success: true, payslip: rows[0], callback });
+    // For timeout, just acknowledge
+    return res.status(200).json({ received: true });
   } catch (err) {
     console.error('[Payroll] Callback handler error', err);
     return res.status(500).json({ error: err.message });

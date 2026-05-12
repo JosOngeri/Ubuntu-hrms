@@ -1,6 +1,7 @@
 // Users (Admin/HR)
 export const userAPI = {
   getAll: () => api.get('/api/users'),
+  getById: (id) => api.get(`/api/users/${id}`),
   register: (data) => api.post('/api/auth/register', data),
   approve: (id, details) => api.post(`/api/users/${id}/approve`, details),
   update: (id, data) => api.put(`/api/users/${id}`, data),

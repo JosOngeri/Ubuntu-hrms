@@ -78,7 +78,7 @@ const AdminAttendance = () => {
         <div className="mb-4 flex gap-2 items-center">
           <label className="font-medium">Employee:</label>
           <select
-            className="form-select"
+            className="form-select bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={selectedEmployee}
             onChange={e => setSelectedEmployee(e.target.value)}
           >
